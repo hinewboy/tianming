@@ -1164,7 +1164,8 @@
 
   function zoomMap(factor){
     var v = state.mapView || { scale: 1, tx: 0, ty: 0 };
-    v.scale = Math.max(0.72, Math.min(4.2, Number(v.scale || 1) * (factor || 1)));
+    // 2026-08-10·上限 4.2→12：府州档 band 10 需要(用户实测 4.2 钳制导致"不能 10 倍放大")
+    v.scale = Math.max(0.72, Math.min(12, Number(v.scale || 1) * (factor || 1)));
     state.mapView = v;
     applyMapTransform();
   }
