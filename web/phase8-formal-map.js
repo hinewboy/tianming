@@ -1339,8 +1339,8 @@
   function prefectureLayer(map, visibleRegions) {
     if (!map || state.mapScale !== 'prefecture') return '';
     // 2026-08-11·府名字号反比 scale(参考省级标签 LOD)：SVG text 随 transform 缩放·
-    // 固定字号在 10 倍下 = 100px+ 涂满——字号 = 屏显 13px / scale·保持屏显恒定
-    var _fs = Math.max(1.2, Math.round(13 / (Number(state.mapView && state.mapView.scale) || 1) * 100) / 100);
+    // 固定字号在 10 倍下 = 100px+ 涂满——字号 = 屏显 11px / scale·保持屏显恒定(用户 13px 反馈太大→回到 11px)
+    var _fs = Math.max(1.0, Math.round(11 / (Number(state.mapView && state.mapView.scale) || 1) * 100) / 100);
     // 2026-08-11·府块线条同样反比 scale：stroke 随 transform 缩放(0.8px×10倍=8px粗线·用户"线条太大"反馈)→
     // 屏显恒定 ~1px 细线·下限 0.05(scale12 时 0.8/12=0.067 不被 0.3 下限抬高成 3px 粗线)
     var _sw = Math.max(0.05, Math.round(1.0 / (Number(state.mapView && state.mapView.scale) || 1) * 100) / 100);
@@ -1377,7 +1377,9 @@
           if (!p || p.level !== 'prefecture' || !p.name) return;
           var poly = PREFP[p.name];
           if (!poly || !poly.polygon || poly.polygon.length < 4) return;
-          var cc = polygonCentroid(poly.polygon);
+          // 2026-08-11·标签锚点优先用数据里预计算的 label(中位数质心·更居中·治位置偏移)·
+          // 无则回落平均质心
+          var cc = (poly.label && poly.label.length === 2) ? { x: poly.label[0], y: poly.label[1] } : polygonCentroid(poly.polygon);
           out += '<g class="tmf-prefecture-label" data-pref="' + attr(p.name) + '" transform="translate(' + cc.x.toFixed(1) + ' ' + cc.y.toFixed(1) + ')">'
             + '<text x="0" y="3" style="font-size:' + _fs + 'px;fill:#f2dfad;stroke:rgba(18,12,5,.85);stroke-width:0.18;paint-order:stroke;text-anchor:middle">' + esc(p.name) + '</text></g>';
         });
