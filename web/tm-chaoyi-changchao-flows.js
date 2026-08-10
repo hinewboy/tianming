@@ -1131,7 +1131,12 @@ async function _cc3_open(opts) {
   // 异步加载议程（AI 生成）
   try {
     console.log('[cc3] _cc3_open·开始 buildAgenda');
-    const items = await _cc3_buildAgendaFromGM();
+    // 2026-08-10 agenda timeout guard: max 60s, fallback agenda on timeout
+    const items = await Promise.race([
+      _cc3_buildAgendaFromGM(),
+      new Promise(function (_res) { setTimeout(function () { _res(null); }, 60000); })
+    ]);
+    if (!items) { console.warn('[cc3] _cc3_open agenda timeout -> fallback'); throw new Error('agenda timeout'); }
     AGENDA.length = 0;
     items.forEach(it => AGENDA.push(it));
     console.log('[cc3] _cc3_open·议程已载入·共 ' + AGENDA.length + ' 条', AGENDA);

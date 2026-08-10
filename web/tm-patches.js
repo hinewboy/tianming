@@ -314,7 +314,7 @@ function _settingsBuildTabs() {
   // 只重排左栏 tab 顺序 + 插组标题·pane 仍按原顺序(只按 key 切换·顺序无关)·不动任何 section 内容。
   var _settingsGroups = [
     { name: '常用',      re: /主页|界面显示|声乐|主题|字号|文风|游戏模式|回合读取/ },
-    { name: 'AI · 模型', re: /API|次要|性能|成本|高级|预算|档位|模型|记忆|生成字数|提示词/ },
+    { name: 'AI · 模型', re: /API|次要|性能|成本|高级|预算|档位|模型|记忆|生成字数|提示词|帝王手记/ },
     { name: '玩法机制',  re: /御驾|战斗|玩法机制|人物志/ },
     // 2026-07-04 设置重置：「实验·进阶」组退役——实验模式并入「系统·更新与实验」·组空即不渲染
     { name: '系统 · 其他', re: /更新|工坊|实验/ }
@@ -1210,7 +1210,7 @@ openSettings=function(){
     // AI生成字数
     "<div class=\"settings-section\"><h4>\u5E1D\u738B\u624B\u8BB0</h4>"+
     "<div style=\"font-size:0.75rem;color:var(--txt-d);margin-bottom:0.4rem;\">\u5199\u7ED9 AI \u7684\u6218\u7565\u5907\u5FD8\uFF08\u6069\u6028/\u653F\u7B56\u610F\u56FE/\u8FDC\u671F\u8BA1\u5212\uFF09\uFF0C\u6BCF\u56DE\u5408\u6CE8\u5165\u63A8\u6F14 prompt\uFF0C\u8BA9 AI \u66F4\u61C2\u4F60\u7684\u5FC3\u601D\u3002\u2264500 \u5B57\u3002</div>"+
-    "<textarea id=\"s-imperial-notes\" maxlength=\"500\" rows=\"4\" style=\"width:100%;box-sizing:border-box;background:var(--bg-3);color:var(--txt);border:1px solid var(--border);border-radius:6px;padding:0.5rem;\">"+((typeof _escHtml==='function')?_escHtml(P.conf.imperialNotes||''):(P.conf.imperialNotes||''))+"</textarea>"+
+    "<textarea id=\"s-imperial-notes\" maxlength=\"500\" rows=\"4\" style=\"width:100%;box-sizing:border-box;background:var(--bg-3);color:var(--txt);border:1px solid var(--border);border-radius:6px;padding:0.5rem;\">"+((typeof escHtml==='function')?escHtml(P.conf.imperialNotes||''):(P.conf.imperialNotes||''))+"</textarea>"+
     "<div style=\"margin-top:0.4rem;display:flex;gap:0.5rem;align-items:center;\">"+
     "<button class=\"bt bsm\" onclick=\"_saveImperialNotes()\">\u4FDD\u5B58\u624B\u8BB0</button>"+
     "<span style=\"font-size:0.72rem;color:var(--txt-d);\" id=\"s-notes-hint\"></span></div></div>"+
