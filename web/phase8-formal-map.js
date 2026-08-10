@@ -1160,7 +1160,17 @@
       // 2026-08-10·联动切档后把 scale 抬升到该层 band：用户手动放大跨阈(如 2.3→府州)时若只切档不放大·
       // 府州档 359 府名在 ~2.5 倍下涂满全屏(用户实测反馈)——抬到 band(府州 10)府名才疏散可交互
       var _b2 = bandToScale(band);
-      if (state.mapView && _b2 > sc) state.mapView.scale = _b2;
+      if (state.mapView && _b2 > sc) {
+        // 2026-08-11·抬升同样以视野中心为锚重算 tx/ty：只改 scale 不改平移 → 放大后视野跳走(用户实测"跑到西北角")
+        var _cw2 = (Number(state._mapVBW) || 1200) / 2, _ch2 = (Number(state._mapVBH) || 720) / 2;
+        var _cxp = (_cw2 - (Number(state.mapView.tx) || 0)) / sc;
+        var _cyp = (_ch2 - (Number(state.mapView.ty) || 0)) / sc;
+        state.mapView.scale = _b2;
+        state.mapView.tx = _cw2 - _cxp * _b2;
+        state.mapView.ty = _ch2 - _cyp * _b2;
+      } else if (state.mapView) {
+        state.mapView.scale = _b2;
+      }
       updateMapChrome();
       renderFormalMapSoon();  // 异步重渲(画新层级·避免 applyMapTransform 内同步递归)
     }
@@ -1297,16 +1307,19 @@
     // 固定字号在 10 倍下 = 100px+ 涂满——字号 = 屏显 11px / scale·保持屏显恒定
     var _fs = Math.max(1.0, Math.round(11 / (Number(state.mapView && state.mapView.scale) || 1) * 100) / 100);
     var out = '';
-    (visibleRegions || []).forEach(function(r) {
+    (visibleRegions || []).forEach(function(r, ridx) {
       var cells = prefectureCells(r);
       if (!cells.length) return;
       var d = pathForRegion(r);
       if (!d) return;
-      var cid = 'tmf-pref-clip-' + String(r.id || r.name || 'x').replace(/[^A-Za-z0-9_-]/g, '');
+      // 2026-08-10·cid 唯一化：中文省名 replace 后为空 → 43 省共用空 id → clipPath 引用错乱(黑块根因)
+      var _safe = String(r.id || r.name || '').replace(/[^A-Za-z0-9_-]/g, '') || ('r' + ridx);
+      var cid = 'tmf-pref-clip-' + _safe;
       out += '<clipPath id="' + cid + '"><path d="' + attr(d) + '"></path></clipPath>';
       out += '<g class="tmf-prefecture-block" clip-path="url(#' + cid + ')">';
       cells.forEach(function(c) {
-        out += '<path class="tmf-pref-cell" data-pref="' + attr(c.name) + '" data-pref-id="' + attr(c.prefId || '') + '" data-province="' + attr(r.name || '') + '" d="M' + c.x0.toFixed(1) + ' ' + c.y0.toFixed(1) + ' L' + c.x1.toFixed(1) + ' ' + c.y0.toFixed(1) + ' L' + c.x1.toFixed(1) + ' ' + c.y1.toFixed(1) + ' L' + c.x0.toFixed(1) + ' ' + c.y1.toFixed(1) + ' Z"></path>';
+        // inline fill 保险：防 CSS(带 body.tm-phase8-formal 前缀)未匹配时 path 默认黑填充
+        out += '<path class="tmf-pref-cell" style="fill:rgba(178,142,74,.12);stroke:rgba(214,188,116,.55);stroke-width:1.2" data-pref="' + attr(c.name) + '" data-pref-id="' + attr(c.prefId || '') + '" data-province="' + attr(r.name || '') + '" d="M' + c.x0.toFixed(1) + ' ' + c.y0.toFixed(1) + ' L' + c.x1.toFixed(1) + ' ' + c.y0.toFixed(1) + ' L' + c.x1.toFixed(1) + ' ' + c.y1.toFixed(1) + ' L' + c.x0.toFixed(1) + ' ' + c.y1.toFixed(1) + ' Z"></path>';
         out += '<g class="tmf-prefecture-label" transform="translate(' + c.cx.toFixed(1) + ' ' + c.cy.toFixed(1) + ')">'
           + '<circle r="2.2" class="tmf-pref-dot"></circle>'
           + '<text x="5" y="3" style="font-size:' + _fs + 'px">' + esc(c.name) + '</text></g>';
