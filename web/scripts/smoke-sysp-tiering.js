@@ -50,10 +50,14 @@ function mkGlobal(flagOn) {
   return { P: { conf: flagOn ? { sysPTieringEnabled: true } : {} }, TM: { Endturn: { AI: { prompt: { SYS_PROFILES: SYS_PROFILES, SYS_PROFILE_OF: SYS_PROFILE_OF } } } } };
 }
 
-// ① 总闸默认关 → 恒返整条(引用恒等=字节恒等)
+// ① 总闸缺省(无设置) → 默认开(2026-08-10 省 token 决策)：专项子调用走裁剪档，主线 FULL
 let ctx = mkCtx();
 let fn = mkSysPFor(ctx, mkGlobal(false));
-ok(fn('sc17') === ctx.prompt.sysP && fn('sc27') === ctx.prompt.sysP && fn('sc1') === ctx.prompt.sysP, '① 总闸关 → 全部恒返整条 sysP(零行为变更)');
+ok(fn('sc17') === '[B][C][WG][R][T]' && fn('sc27') === '[B][C][R][T]' && fn('sc1') === ctx.prompt.sysP, '① 缺省 → 默认开·专项裁剪、主线 FULL');
+// ①b 显式关闭 → 恒返整条(零行为变更·老契约保留)
+ctx = mkCtx();
+fn = mkSysPFor(ctx, { P: { conf: { sysPTieringEnabled: false } }, TM: { Endturn: { AI: { prompt: { SYS_PROFILES: SYS_PROFILES, SYS_PROFILE_OF: SYS_PROFILE_OF } } } } });
+ok(fn('sc17') === ctx.prompt.sysP && fn('sc27') === ctx.prompt.sysP && fn('sc1') === ctx.prompt.sysP, '①b 显式关闭 → 全部恒返整条 sysP(零行为变更)');
 
 // ② 开闸 → 各档裁剪正确
 ctx = mkCtx();

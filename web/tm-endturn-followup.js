@@ -561,7 +561,7 @@
         tp15 += '\n■ mood_shifts: 每个受本回合事件影响的角色都应有心态变化。\n';
         tp15 += '■ relationship_changes: NPC之间的关系变动（不只是NPC与玩家的关系）。';
 
-        var _sc15Body = {model:P.ai.model||"gpt-4o", messages:[{role:"system",content:_maybeCacheSys(sysPFor('sc15'))},{role:"user",content:tp15}], temperature:P.ai.temp||0.8, max_tokens:_tok(12000)};
+        var _sc15Body = {model:P.ai.model||"gpt-4o", messages:[{role:"system",content:_maybeCacheSys(sysPFor('sc15'))},{role:"user",content:tp15}], temperature:P.ai.temp||0.8, max_tokens:_tok(8000)};
         if (_modelFamily === 'openai') _sc15Body.response_format = { type: 'json_object' };
         var _sc15Call = await _callFollowupAI(_sc15Body, { id: 'sc15', label: '人物关系', priority: 'normal' });
         {
@@ -939,7 +939,7 @@
         }
         if (p1 && p1.resource_changes) tp17 += '\u672C\u56DE\u5408\u8D44\u6E90\u53D8\u5316\uFF1A' + JSON.stringify(p1.resource_changes) + '\n';
         tp17 += '\n\u8BF7\u8FD4\u56DEJSON\uFF1A{"fiscal_analysis":"\u8D22\u653F\u5B8C\u6574\u5206\u6790\u2014\u2014\u6536\u5165\u6765\u6E90\u3001\u652F\u51FA\u538B\u529B\u3001\u76C8\u4E8F\u72B6\u51B5(200\u5B57)","trade_dynamics":"\u8D38\u6613\u548C\u5546\u4E1A\u52A8\u6001(100\u5B57)","inflation_pressure":"\u901A\u80C0/\u7269\u4EF7\u538B\u529B(80\u5B57)","resource_forecast":"\u4E0B\u56DE\u5408\u8D44\u6E90\u9884\u6D4B(100\u5B57)","economic_advice":"\u7ECF\u6D4E\u5EFA\u8BAE\u2014\u2014\u5E94\u8BE5\u505A\u4EC0\u4E48\u4E0D\u5E94\u8BE5\u505A\u4EC0\u4E48(100\u5B57)","supplementary_resource_changes":{"\u53D8\u91CF\u540D":\u8865\u5145\u53D8\u5316\u91CF}}';
-        var _sc17Body = {model:P.ai.model||"gpt-4o", messages:[{role:"system",content:_maybeCacheSys(sysPFor('sc17'))},{role:"user",content:tp17}], temperature:0.6, max_tokens:_tok(12000)};
+        var _sc17Body = {model:P.ai.model||"gpt-4o", messages:[{role:"system",content:_maybeCacheSys(sysPFor('sc17'))},{role:"user",content:tp17}], temperature:0.6, max_tokens:_tok(8000)};
         if (_modelFamily === 'openai') _sc17Body.response_format = { type: 'json_object' };
         var _sc17Call = await _callFollowupAI(_sc17Body, { id: 'sc17', label: '资源变动', priority: 'normal' });
         {
@@ -1070,7 +1070,7 @@
         tp18 += '· 每个非玩家势力本回合应至少 1 条 faction_military_actions 条目（兵力调动/作战/备战/征募等）\n';
         tp18 += '\n请返回JSON：{"military_situation":"全局军事态势分析(200字)","border_threats":"边境威胁评估(150字)","army_morale_analysis":"各军士气分析和风险(100字)","supplementary_army_changes":[{"name":"部队","faction":"所属","soldiers_delta":0,"morale_delta":0,"composition":[{"type":"兵种名","count":人数}],"equipment":[{"name":"装备名","count":数量}],"equipmentCondition":"装备状况·简陋/一般/优良","quality":"兵质","reason":"兵种/装备/兵质仅在实际变动时填(如扩编火器营/换装红衣大炮/整训提升)·否则省略这几项"}],"faction_military_actions":[{"faction":"势力名","action":"军事行动30字","targetFaction":"目标势力可空","casualties":0,"outcome":"结果30字","rationale":"动机30字"}],"recruitment_costs":[{"name":"新建军名","silver":0,"grain":0,"cloth":0,"reason":"募兵开销·依兵额兵种与本朝财力估算·量入为出"}],"war_probability":"下回合爆发战争的概率和方向(80字)"}';
         tp18 += '\n\u82e5\u672c\u56de\u5408\u660e\u786e\u53d1\u751f\u4e00\u573a\u53ef\u843d\u5730\u6218\u6597/\u5360\u57ce\uff0c\u8fd8\u5fc5\u987b\u8fd4\u56de battleResult:{winnerFactionId,loserFactionId,occupiedCityIds,casualties:{attacker,defender},affectedArmies:[{armyId,side,loss,moraleDelta,loyaltyDelta,state,commanderFate}],attackerArmyId,defenderArmyId,commanderFate:{name,outcome},postBattleEffects[]}.\u82e5\u591a\u573a\u6218\u6597\uff0c\u9009\u6700\u91cd\u5927\u4e00\u573a\u5199 battleResult\uff0c\u5176\u4f59\u7559\u5728 faction_military_actions\u3002';
-        var _sc18Body = {model:P.ai.model||"gpt-4o", messages:[{role:"system",content:_maybeCacheSys(sysPFor('sc18'))},{role:"user",content:tp18}], temperature:0.7, max_tokens:_tok(12000)};
+        var _sc18Body = {model:P.ai.model||"gpt-4o", messages:[{role:"system",content:_maybeCacheSys(sysPFor('sc18'))},{role:"user",content:tp18}], temperature:0.7, max_tokens:_tok(8000)};
         if (_modelFamily === 'openai') _sc18Body.response_format = { type: 'json_object' };
         var _sc18Call = await _callFollowupAI(_sc18Body, { id: 'sc18', label: '军事变动', priority: 'normal' });
         {
@@ -2067,7 +2067,7 @@
         + (aiThinking ? '【AI分析】' + aiThinking.substring(0, 200) + '\n' : '')
         + TM.Endturn.AI.prompt.hourenSpec(ctx);
       var msgs2 = (typeof _tmPrepareSc2Messages === 'function') ? _tmPrepareSc2Messages(sysP, GM.conv, tp2, _maybeCacheSys) : [{role:"system",content:_maybeCacheSys(sysPFor('sc2'))},{role:"user",content:tp2}];
-      var _sc2Body = {model:P.ai.model||"gpt-4o",messages:msgs2,temperature:P.ai.temp||0.8,max_tokens:_tok(16000)};
+      var _sc2Body = {model:P.ai.model||"gpt-4o",messages:msgs2,temperature:P.ai.temp||0.8,max_tokens:_tok(8000)};
       if (_modelFamily === 'openai') _sc2Body.response_format = { type: 'json_object' };
       var _sc2Call = await _callFollowupAI(_sc2Body, { id: 'sc2', label: '后人戏说', priority: 'normal' });
       var data2 = _sc2Call.data;
@@ -2408,7 +2408,7 @@
         var _c25 = (typeof _getAITier === 'function') ? _getAITier(_t25) : { key: P.ai.key, url: url, model: P.ai.model || 'gpt-4o' };
         var _u25 = (typeof _buildAIUrlForTier === 'function') ? _buildAIUrlForTier(_t25) : url;
         _dbg('[sc25] using tier:', _c25.tier || _t25, 'model:', _c25.model);
-        var _sc25Body = {model:_c25.model, messages:[{role:"system",content:_maybeCacheSys(sysPFor('sc25'))},{role:"user",content:tp25}], temperature:0.7, max_tokens:_tok(12000)};
+        var _sc25Body = {model:_c25.model, messages:[{role:"system",content:_maybeCacheSys(sysPFor('sc25'))},{role:"user",content:tp25}], temperature:0.7, max_tokens:_tok(8000)};
         if (_tmDetectModelFamily(_c25.model, _modelFamily) === 'openai') _sc25Body.response_format = { type: 'json_object' };
         var _sc25Call = await _callFollowupAI(_sc25Body, { id: 'sc25', label: '伏笔记忆', url: _u25, key: _c25.key, priority: 'high' });
         {
@@ -2877,7 +2877,7 @@
         tp07 += '· 某人本回合「亲历」之事他必知;非亲历非在场之远事·除非有亲近者可通报·否则列入 doesntKnow。\n';
         tp07 += '· 消息顺关系网传:与消息当事人愈亲近愈早知愈详;素无往来者多不知或只得风闻(入 rumorVsFact 而非 knows)。勿让人人皆知一切。\n';
 
-        var _sc07Body = {model:P.ai.model||'gpt-4o', messages:[{role:'system',content:_maybeCacheSys(sysPFor('sc07'))},{role:'user',content:tp07}], temperature:_modelTemp, max_tokens:_tok(12000)};
+        var _sc07Body = {model:P.ai.model||'gpt-4o', messages:[{role:'system',content:_maybeCacheSys(sysPFor('sc07'))},{role:'user',content:tp07}], temperature:_modelTemp, max_tokens:_tok(8000)};
         if (_modelFamily === 'openai') _sc07Body.response_format = { type:'json_object' };
 
         var _sc07Call = await _callFollowupAI(_sc07Body, { id: 'sc07', label: 'NPC 认知', priority: 'normal' });

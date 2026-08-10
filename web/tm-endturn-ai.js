@@ -1278,7 +1278,7 @@
       }
       // 【自我反思 agent·S2】sc0 预测阶段注入滚动偏差画像→让 AI 在预测时就校正自己的系统性盲点(agent 核心价值·而非 sc1 事后)。默认关=空串·逐字节零回归。
       try { if ((typeof agentFlagOn==='function' ? agentFlagOn('reflectionAgentEnabled') : (P.ai && P.ai.reflectionAgentEnabled)) && window.TM && window.TM.ReflectionAgent) { var _biasInj = window.TM.ReflectionAgent.formatBiasForSc0(GM); if (_biasInj) tp0 += _biasInj; } } catch(_biasE){}
-      var _sc0Body = {model:P.ai.model||"gpt-4o", messages:[{role:"system",content:_maybeCacheSys(sysPFor('sc0'))},{role:"user",content:tp0}], temperature:0.6, max_tokens:_tok(12000)};
+      var _sc0Body = {model:P.ai.model||"gpt-4o", messages:[{role:"system",content:_maybeCacheSys(sysPFor('sc0'))},{role:"user",content:tp0}], temperature:0.6, max_tokens:_tok(8000)};
       if (_modelFamily === 'openai') _sc0Body.response_format = { type: 'json_object' };
       var _sc0Call = await _callEndturnAI(_sc0Body, { id: 'sc0', label: '局势分析', priority: 'normal' });
       {
@@ -3376,7 +3376,7 @@
 
       // 1.2+1.8+S1：ModelAdapter温度 + OpenAI原生JSON模式 + 流式感知进度
       // 动态 max_tokens：取模型单次最大输出（_MODEL_CTX_MAP）与业务需要 16K 的较小值·避免小模型被要求超限、大模型被限制过保守
-      var _sc1BaseTok = Math.min(_effectiveOutCap || 16384, 16384);
+      var _sc1BaseTok = Math.min(_effectiveOutCap || 12288, 12288); // 2026-08-10·输出收紧: 16K→12K(concise 实际4-6K·防话痨写满)
       // Phase 2 A1 真接入·按 SC1_SCHEMA_TIERS·按 modelCap 自动删 extended/common 字段段 (low-tier model)
       try {
         var _capK_A1 = _effectiveOutCap ? Math.round(_effectiveOutCap / 1024) : 16;

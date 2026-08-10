@@ -4147,7 +4147,9 @@
       //   拆成 dynMid/dynState/dynArcs 置后；真稳定段（stableHead 史观+stableRules 硬约束+stableIron 任免铁则
       //   +base 预演规划/势力矩阵+roster 名单+worldPlan+socialRules+tail）全部置前 → 前缀缓存覆盖最大化
       //   （DeepSeek 按前缀单元全匹配计命中；前缀里任何一个字节变，其后续全部失配）。内容零增删·仅拼接顺序变化。
-      var _STABLE_FIRST = { stableHead:1, stableRules:1, stableIron:1, base:1, worldPlan:1, socialRules:1, roster:1, tail:1 };
+      // 2026-08-10 三批（实测命中仍 20%）：worldPlan 含剧本事件（随触发每回合变）→ 移出稳定组（前缀断点过早·其后全 miss）；
+      //   worldSocial(势力规则)/worldLifecycle(生灭schema) 为静态配置 → 入稳定组。真稳定组≈整局字节不变。
+      var _STABLE_FIRST = { stableHead:1, stableRules:1, stableIron:1, base:1, worldSocial:1, worldLifecycle:1, socialRules:1, roster:1, tail:1 };
       if (_segs.length > 1) {
         var _stableSegs = [], _dynSegs = [];
         for (var _rs = 0; _rs < _segs.length; _rs++) {
@@ -4190,8 +4192,16 @@
     ctx.prompt.sysPFor = function(scId){
       var _segsL = ctx.prompt._segs;
       if (!_segsL) return ctx.prompt.sysP;
-      var _tierOn = false;
-      try { var _Pf = global.P || {}; _tierOn = !!((_Pf.conf && _Pf.conf.sysPTieringEnabled) || (_Pf.ai && _Pf.ai.sysPTieringEnabled)); } catch (_te) {}
+      var _tierOn = true;
+      try {
+        var _Pf = global.P || {};
+        // 2026-08-10·省 token（酒馆式·按调用任务裁剪系统提示）：分级裁剪默认开启。
+        // 老存档无该字段 → 默认 true（省钱提速）；显式关闭过 → 尊重；设置页「玩法机制·深化」可随时切换。
+        // 主推演(sc1 系)与对话恒 FULL 不受影响，仅 17 个专项子调用(财政/军事/势力/诏令/认知/快照等)吃裁剪档。
+        var _tv = (_Pf.conf && _Pf.conf.sysPTieringEnabled);
+        if (_tv === undefined && _Pf.ai) _tv = _Pf.ai.sysPTieringEnabled;
+        if (_tv !== undefined) _tierOn = !!_tv;
+      } catch (_te) {}
       if (!_tierOn) return ctx.prompt.sysP;
       var _prof = (global.TM.Endturn.AI.prompt.SYS_PROFILE_OF || {})[scId] || 'FULL';
       if (_prof === 'FULL') return ctx.prompt.sysP;
