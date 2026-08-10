@@ -1184,11 +1184,15 @@
     // 2026-08-10·上限 4.2→12：府州档 band 10 需要(用户实测 4.2 钳制导致"不能 10 倍放大")
     var s2 = Math.max(0.72, Math.min(12, Number(v.scale || 1) * (factor || 1)));
     if (Math.abs(s2 - (Number(v.scale) || 1)) < 0.001) return;
-    // 2026-08-11·平滑缩放：保持视野中心·rAF 插值(治府州 10 倍跳变不平滑)
+    // 2026-08-11·交互即时响应(去动画·治卡住)：缩放按钮跟手·动画只留给切档/联动/复位
+    if (_mapAnimRaf) { cancelAnimationFrame(_mapAnimRaf); _mapAnimRaf = 0; _mapAnimFrom = _mapAnimTo = null; }
     var CW = (Number(state._mapVBW) || 1200) / 2, CH = (Number(state._mapVBH) || 720) / 2;
     var cx = (CW - (Number(v.tx) || 0)) / (Number(v.scale) || 1);
     var cy = (CH - (Number(v.ty) || 0)) / (Number(v.scale) || 1);
-    animateMapView(s2, CW - cx * s2, CH - cy * s2, 150);
+    v.scale = s2;
+    v.tx = CW - cx * s2;
+    v.ty = CH - cy * s2;
+    applyMapTransform();
   }
 
   function resetMapView(){
@@ -1207,6 +1211,8 @@
     durMs = durMs || 180;
     if (_mapAnimRaf) cancelAnimationFrame(_mapAnimRaf);
     (function step(){
+      // 2026-08-11·防御：动画被交互 cancel 后残留 rAF 帧立即退出——否则用旧目标覆盖用户即时缩放(用户"放大时自动缩小"根因)
+      if (!_mapAnimFrom || !_mapAnimTo) { _mapAnimRaf = 0; return; }
       var t = Math.min(1, (Date.now() - _mapAnimT0) / durMs);
       var e = 1 - Math.pow(1 - t, 3);   // ease-out cubic
       v.scale = _mapAnimFrom.scale + (_mapAnimTo.scale - _mapAnimFrom.scale) * e;
@@ -1352,7 +1358,7 @@
       var cid = 'tmf-pref-clip-' + _safe;
       out += '<clipPath id="' + cid + '"><path d="' + attr(d) + '"></path></clipPath>';
       out += '<g class="tmf-prefecture-block" clip-path="url(#' + cid + ')">';
-      // ① 真实 polygon 府（CHGIS 匹配到）
+      // ① 真实 polygon 府（CHGIS 匹配到）·府块 path 在 clip 组内(裁剪贴合省边界)
       if (PREFP) {
         var _rprefs = (r.data && r.data.children && r.data.children.length) ? r.data.children : (r.prefectures || []);
         _rprefs.forEach(function(p) {
@@ -1360,12 +1366,22 @@
           var poly = PREFP[p.name];
           if (!poly || !poly.polygon || poly.polygon.length < 4) return;
           out += '<path class="tmf-pref-cell tmf-pref-real" style="fill:rgba(178,142,74,.07);stroke:rgba(222,196,128,.45);stroke-width:' + _sw + '" data-pref="' + attr(p.name) + '" data-pref-id="' + attr(p.id || '') + '" data-province="' + attr(r.name || '') + '" d="' + polygonPathFrom(poly.polygon) + '"></path>';
+        });
+      }
+      out += '</g>';
+      // ② 府名标签层(clip 组外·不被省边界裁剪——2026-08-11·用户反馈府名被地图盖住一部分)
+      out += '<g class="tmf-pref-label-layer">';
+      if (PREFP) {
+        var _rprefs2 = (r.data && r.data.children && r.data.children.length) ? r.data.children : (r.prefectures || []);
+        _rprefs2.forEach(function(p) {
+          if (!p || p.level !== 'prefecture' || !p.name) return;
+          var poly = PREFP[p.name];
+          if (!poly || !poly.polygon || poly.polygon.length < 4) return;
           var cc = polygonCentroid(poly.polygon);
           out += '<g class="tmf-prefecture-label" data-pref="' + attr(p.name) + '" transform="translate(' + cc.x.toFixed(1) + ' ' + cc.y.toFixed(1) + ')">'
             + '<text x="0" y="3" style="font-size:' + _fs + 'px;fill:#f2dfad;stroke:rgba(18,12,5,.85);stroke-width:0.18;paint-order:stroke;text-anchor:middle">' + esc(p.name) + '</text></g>';
         });
       }
-      // ② 无真实边界的府：取消方块·仅保留府名标签（2026-08-11·用户反馈方块不自然）
       cells.forEach(function(c) {
         if (PREFP && PREFP[c.name]) return;   // 已有真实边界·跳过
         out += '<g class="tmf-prefecture-label" data-pref="' + attr(c.name) + '" transform="translate(' + c.cx.toFixed(1) + ' ' + c.cy.toFixed(1) + ')">'
@@ -1927,13 +1943,16 @@
       e.preventDefault();
       var map = getMapData();
       if (!map) return;
+      // 2026-08-11·交互优先：滚轮即时缩放·先取消进行中动画(治动画抢回控制权导致卡住)
+      if (_mapAnimRaf) { cancelAnimationFrame(_mapAnimRaf); _mapAnimRaf = 0; _mapAnimFrom = _mapAnimTo = null; }
       var rect = stage.getBoundingClientRect();
       var width = Number(map.width || stage.dataset.width || 1200);
       var height = Number(map.height || stage.dataset.height || 720);
       var x = (e.clientX - rect.left) / rect.width * width;
       var y = (e.clientY - rect.top) / rect.height * height;
       var old = state.mapView.scale || 1;
-      var next = Math.max(.85, Math.min(3.4, old * (e.deltaY < 0 ? 1.14 : .88)));
+      // 2026-08-11·上限 3.4→12(与 zoomMap 一致)：旧上限导致滚轮放大到 3.4 停→联动抬升直接跳 10(用户"跳级"反馈)
+      var next = Math.max(.85, Math.min(12, old * (e.deltaY < 0 ? 1.14 : .88)));
       state.mapView.tx = x - (x - (state.mapView.tx || 0)) * (next / old);
       state.mapView.ty = y - (y - (state.mapView.ty || 0)) * (next / old);
       state.mapView.scale = next;
@@ -1943,6 +1962,8 @@
       if (e.button !== 0) return;
       if (e.pointerType === 'touch') return; // 触屏 pan/缩放交给 attachPinchPan(touch 事件)·避免 pointer+touch 双重平移
       if (e.cancelable) e.preventDefault();
+      // 2026-08-11·交互优先：拖拽开始即取消进行中动画(治卡住)
+      if (_mapAnimRaf) { cancelAnimationFrame(_mapAnimRaf); _mapAnimRaf = 0; _mapAnimFrom = _mapAnimTo = null; }
       clearMapSelection();
       state.drag = { id: e.pointerId, x: e.clientX, y: e.clientY, tx: state.mapView.tx || 0, ty: state.mapView.ty || 0, moved: false };
       stage.setPointerCapture(e.pointerId);
@@ -1983,6 +2004,8 @@
           var rect = stage.getBoundingClientRect();
           if (!rect.width || !rect.height) return;
           if (!state.mapView) state.mapView = { scale: 1, tx: 0, ty: 0 };
+          // 2026-08-11·触屏交互优先：手势开始即取消进行中动画(治卡住)
+          if (_mapAnimRaf) { cancelAnimationFrame(_mapAnimRaf); _mapAnimRaf = 0; _mapAnimFrom = _mapAnimTo = null; }
           var width = Number(map.width || 1200), height = Number(map.height || 720);
           if (g.panDX || g.panDY) {
             state.mapView.tx = (state.mapView.tx || 0) + g.panDX / rect.width * width;
@@ -1992,7 +2015,8 @@
             var ax = (g.cx - rect.left) / rect.width * width;
             var ay = (g.cy - rect.top) / rect.height * height;
             var old = state.mapView.scale || 1;
-            var next = Math.max(.85, Math.min(3.4, old * g.zoom));
+            // 2026-08-11·上限 3.4→12(与滚轮/按钮一致)：触屏双指同样能到 10 倍
+            var next = Math.max(.85, Math.min(12, old * g.zoom));
             state.mapView.tx = ax - (ax - (state.mapView.tx || 0)) * (next / old);
             state.mapView.ty = ay - (ay - (state.mapView.ty || 0)) * (next / old);
             state.mapView.scale = next;
