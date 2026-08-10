@@ -172,6 +172,38 @@ Windows 下也可直接使用外层目录的 `启动天命.bat`（正式启动�
 
 ---
 
+## 开发日志
+
+> 2026-08 起记录的迭代日志（每版一行的要点 + 关键教训），供接手者快速回溯「这版改了什么、为什么」。发版流程红线见 [`AGENTS.md`](AGENTS.md)；详细开发纪律见 [`CLAUDE.md`](CLAUDE.md)。
+
+| 内容版 | 日期 | 要点 |
+|---|---|---|
+| 1.3.4.11-v1352 ~ v1358 | 2026-08-09~10 | 手记入口 / 朔朝提速（议程后台化 `_agendaPromise`）/ sysP 缓存前缀 / 首页自愈 / 验证套件；APK 命名统一为 `tianming-1.3.4.11-android-v<vc>.apk` + tag `android-v<vc>` |
+| v1359 | 2026-08-10 | 修复 idle bump 进度条跳 95%（拍内误重置 ceiling）；smoke s7 断言完成即 `process.exit(0)`（绕开 require 链 keep-alive Socket 拖死 node） |
+| v1360 | 2026-08-10 | 重建：idle bump 拍中只断链、回合结束/新拍才重置真实拍界 |
+| v1361 | 2026-08-10 | 省 token 第五弹：`tm-context-lorebook.js` 本地故事速览（零 AI 成本）+ sc05 深度回顾收窄（全文 5→2 回合）+ sc27 大纲审查默认跳过（确定性亡者审计兜底） |
+| v1362 | 2026-08-10 | 三大 bug：诏书「诏付有司」改真发布（`_publishEdictDirect`）+ 润色失败回退草稿成稿 + 透明窗口补宣纸背景；廷议「开议后窗口消失」= `_ty2_startSession` 在御前召对路径下 `cy-body` null（朝会模态未开）→ 兜底建模态骨架 + CY 初始化 |
+| v1363 | 2026-08-10 | 府州档真地块：每省按府数网格切分 + SVG clipPath 裁剪贴合省边界（359 府块） |
+| v1364 | 2026-08-10 | 府州方志（点击府块复用省级 `openRegionDossier` 册页）；`ensurePrefectureData` 防御补数据（旧存档缺 `data.children` 时从剧本 bundle 补回） |
+| v1365 | 2026-08-10 | 府州档默认放大 10 倍 |
+| v1366 | 2026-08-10 | zoomMap 缩放上限 4.2→12（府州 10 倍不被钳制）；`.tmf-prefecture-layer` 默认 `display:block`（去 `data-map-scale` 属性依赖——属性未同步则府州层被 CSS 永久隐藏） |
+| v1367 | 2026-08-10 | 缩放联动切档（`_syncScaleLevelFromZoom`）只切档不放大 → 联动抬升到 band；府名字号反比 scale（SVG text 随 transform 缩放·屏显恒定） |
+| v1368 | 2026-08-11 | 黑块根因：clipPath id 用中文省名 `replace(非ASCII)` → 全删成空 → 43 省共用空 id → 引用错乱；修复 cid 唯一化（回退 `r+index`）+ inline fill 保险；联动抬升中心锚定（治西北角跳走） |
+| v1369 | 2026-08-11 | **真实府州边界**：联网找到 CHGIS V6（哈佛·学术授权验证用）明朝府州 polygon，省 bbox 锚定映射（经纬度→屏幕坐标·纬度翻转）生成 `web/tianqi-prefecture-polygons.js`（156/359 府匹配·未匹配府回落网格）；府块线条反比 scale；删除府名标签黑点；`animateMapView` 平滑动画（切档/联动/滚轮/复位） |
+| v1370 | 2026-08-11 | 修复府块线条下限 0.3→0.05（scale10 时 0.08 被抬成 3px 粗线——`Math.max` 下限陷阱） |
+| v1371 | 2026-08-11 | 缩放全链路双向平滑（放大/缩小/按钮/滚轮/复位全走 `animateMapView`·无直设残留）；无真实边界的府取消方块仅留府名（可点击开方志）；府名更显眼（13px 屏显 + 亮金 #f2dfad + 深描边 `paint-order:stroke`）；边界更亮、线条 1px 屏显 |
+
+**关键教训（接手必读）**：
+- **发版只走 `scripts/release.js`**（prepare/publish 两阶段），版本号 6 处同盖；OTA 必须自带全部 `web/assets`（~800MB+），绝不收敛成"只发跟踪码"（1.3.4.9 丢图事故）。红线全文见 `AGENTS.md`。
+- **运行时数据链**：剧本 `mapData`（含 `region.data.children` 359 府）才是地图真源；`web/data/maps/tianqi-ming2.game-map.json` 是 refFiles 参考文件（无府数据），**不进运行时**。旧存档若缺府数据，渲染前 `ensurePrefectureData` 从 bundle 补回。
+- **SVG 随 transform 缩放**：地图内 `text` 字号与 `path` stroke 都要**反比 scale**（屏显恒定），否则放大后巨字/粗线（府名字号/线条均踩过此坑）。
+- **缩放锚定**：只改 scale 不改 tx/ty → 视野跳走（"跑到西北角"）；切档/联动抬升必须**以视野中心为锚重算平移**。
+- **clipPath id 不能含中文**（SVG id 引用错乱）；统一英文 id 或 `r+index` 回退。
+- **CHGIS 数据**：`pessimistcamellia/china-history-map` 的 `v2/data/geo/ming.json`（CHGIS V6/Hartwell GIS v5）含明代府州 polygon，学术授权（"验证用·商业化前换源"）——游戏开源免费，提取府名+坐标派生成游戏内简化多边形可接受；天启新增府（承天府/潞安府等）与边镇卫所（宣府镇/宁武关）CHGIS 万历版图不含 → 回落标签。
+- **进度条 idle bump**：拍间隙 >8s ceiling 每 2s +0.5%；**拍中只断链、回合结束/新拍才重置 ceiling**（v1359/v1360 两轮才修干净）。
+
+---
+
 ## 项目结构与深入阅读
 
 本仓库的 `web/` 是天命 Web 运行时，也是 Pages 的**构建输入**；Pages workflow 会重新执行与主 CI 等价的完整 guards，并在 release 触发时验证 tag 来自 `origin/main`，之后才部署受检 staging。仓库根目录不是网页发布源；仓主发版采用 `--prepare` 经 PR 盖戳、clean main `--publish` 的两阶段流程。
