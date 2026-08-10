@@ -1387,6 +1387,10 @@
         if (PREFP && PREFP[c.name]) return;   // 已有真实边界·跳过
         _prefLabels.push({ name: c.name, x: c.cx, y: c.cy });
       });
+      // 2026-08-11·府名约束进省 polygon 内(治府名跑到海里)：label 在省 polygon 外(海面/邻省)则向省质心收拢
+      var _rptsForPull = r.points || [];
+      // 顺序：先防碰撞(下移散开) → 再约束进省(拉回·接受个别重叠)——防碰撞下移会把 label 移出省
+      // (harness 实测北直隶 6 府名出省)·约束在最后保证不跑出海面
       // 贪心防碰撞：按 x 排序·与已放置冲突(x 距 < 26 且 y 距 < 15)则下移 16px 重试
       _prefLabels.sort(function(a, b) { return a.x - b.x; });
       var _placed = [];
@@ -1403,8 +1407,15 @@
           _L.y += 16; _tries++;
         }
         _placed.push({ x: _L.x, y: _L.y });
-        out += '<g class="tmf-prefecture-label" data-pref="' + attr(_L.name) + '" transform="translate(' + _L.x.toFixed(1) + ' ' + _L.y.toFixed(1) + ')">'
-          + '<text x="0" y="3" style="font-size:' + _fs + 'px;fill:#f2dfad;stroke:rgba(18,12,5,.85);stroke-width:0.18;paint-order:stroke;text-anchor:middle">' + esc(_L.name) + '</text></g>';
+      }
+      // 防碰撞后再统一约束进省 polygon（拉回·治跑海里）
+      for (var _pk = 0; _pk < _prefLabels.length; _pk++) {
+        pullPointIntoPolygon(_prefLabels[_pk], _rptsForPull);
+      }
+      for (var _pi2 = 0; _pi2 < _prefLabels.length; _pi2++) {
+        var _L2 = _prefLabels[_pi2];
+        out += '<g class="tmf-prefecture-label" data-pref="' + attr(_L2.name) + '" transform="translate(' + _L2.x.toFixed(1) + ' ' + _L2.y.toFixed(1) + ')">'
+          + '<text x="0" y="3" style="font-size:' + _fs + 'px;fill:#f2dfad;stroke:rgba(18,12,5,.85);stroke-width:0.18;paint-order:stroke;text-anchor:middle">' + esc(_L2.name) + '</text></g>';
       }
       out += '</g>';
     });
@@ -1421,6 +1432,29 @@
     var x = 0, y = 0;
     for (var i = 0; i < poly.length; i++) { x += poly[i][0]; y += poly[i][1]; }
     return { x: x / poly.length, y: y / poly.length };
+  }
+  // 2026-08-11·点是否在多边形内(ray casting·轻量)·府名约束到省 polygon 内(治府名跑到海里)
+  function pointInPolygon(x, y, pts) {
+    if (!pts || pts.length < 3) return true;
+    var inside = false;
+    for (var i = 0, j = pts.length - 1; i < pts.length; j = i++) {
+      var xi = pts[i][0], yi = pts[i][1], xj = pts[j][0], yj = pts[j][1];
+      if (((yi > y) !== (yj > y)) && (x < (xj - xi) * (y - yi) / (yj - yi) + xi)) inside = !inside;
+    }
+    return inside;
+  }
+  // 2026-08-11·把点约束进省 polygon 内：在外则向省质心方向收拢(最多 8 次·治府名落在海面)
+  function pullPointIntoPolygon(pt, rpts) {
+    if (!rpts || rpts.length < 3 || pointInPolygon(pt.x, pt.y, rpts)) return pt;
+    var pcx = 0, pcy = 0;
+    for (var i = 0; i < rpts.length; i++) { pcx += rpts[i][0]; pcy += rpts[i][1]; }
+    pcx /= rpts.length; pcy /= rpts.length;
+    for (var t = 0; t < 8; t++) {
+      pt.x += (pcx - pt.x) * 0.3;
+      pt.y += (pcy - pt.y) * 0.3;
+      if (pointInPolygon(pt.x, pt.y, rpts)) break;
+    }
+    return pt;
   }
   // 2026-08-10·防御补数据：运行时 region.data.children 缺失(旧存档/早期版本从 game-map.json 绑定)时·
   // 渲染前从剧本 bundle(mapData/map)按省 id/name 匹配补回府州数据(运行时增强·不改存档)
