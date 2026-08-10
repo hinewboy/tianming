@@ -86,11 +86,16 @@
   // 2026-08-10·进度条感知优化：拍间隙超过 8s(卡在长 AI 调用)后，ceiling 每 2s +0.5% 缓慢放开，
   // 进度条不再硬停在拍界——用户看到"仍在工作"而非"卡死"。新拍到来即重置回真实拍界。
   // 链式 setTimeout（非 setInterval）：clearTimeout 可断链，杜绝残留 timer 拖住进程（smoke 环境实测）。
+  // ★清 timer 与重置 ceiling 分离：_scheduleIdleBump(拍中) 只断旧链不重置(否则每拍把 ceiling 冲回 95·覆盖真实拍界)；
+  //   _clearIdleBump(结束场景) 才重置 ceiling=95。
   var _idleTimer = null;
   var _idleCeil = 95;
+  function _clearIdleTimer() {
+    if (_idleTimer) { clearTimeout(_idleTimer); _idleTimer = null; }
+  }
   function _scheduleIdleBump(ceil) {
     _idleCeil = ceil;
-    _clearIdleBump();
+    _clearIdleTimer();
     _idleTimer = setTimeout(function _tick() {
       _idleCeil = Math.min(_idleCeil + 0.5, 97);
       if (typeof window.setLoadingCrawlCeil === 'function') window.setLoadingCrawlCeil(_idleCeil);
@@ -98,7 +103,7 @@
     }, 8000);
   }
   function _clearIdleBump() {
-    if (_idleTimer) { clearTimeout(_idleTimer); _idleTimer = null; }
+    _clearIdleTimer();
     if (typeof window.setLoadingCrawlCeil === 'function') window.setLoadingCrawlCeil(95);
   }
 
