@@ -253,6 +253,8 @@ function _endTurn_render(shizhengji, zhengwen, playerStatus, playerInner, edicts
       _evidenceRefs = TM.MemoryEvidenceRegistry.buildBasisRefs(GM, { maxRefs: 16 });
     }
   } catch(_) { _evidenceRefs = []; }
+  // 2026-08-10·故事速览维护：史记入档后同步压缩进本地 lorebook(确定性·零 AI 成本)
+  try { if (typeof TM !== 'undefined' && TM.ContextLoreBook && typeof TM.ContextLoreBook.appendTurn === 'function') { TM.ContextLoreBook.appendTurn(GM, { turn: GM.turn-1, time: getTSText(GM.turn-1), shizhengji: shizhengji }); } } catch(_lbE) {}
   GM.shijiHistory.push({
     id: _recordMeta && _recordMeta.id,
     turn: GM.turn-1, time: getTSText(GM.turn-1),

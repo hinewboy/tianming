@@ -1932,7 +1932,9 @@
         });
 
         // Slice 3·sc27_review·审 outline (而非 prose)·temp=0.3·仅在确信时报告
-        if (_sc2OutlineResult) {
+        // 2026-08-10·省时/省token：大纲审查**默认跳过**(有确定性亡者审计兜底·省一个 LLM 调用 15-25s)；
+        //   设置 P.conf.skipOutlineReview=false 可重新启用（设置页「玩法机制·深化」有开关）
+        if (_sc2OutlineResult && !(typeof P !== 'undefined' && P.conf && P.conf.skipOutlineReview === false)) {
           await _runSubcall('sc27_review', '大纲审查', 'standard', async function() {
             try {
               var _charNamesR = (GM.chars||[]).filter(function(c){return c.alive!==false;}).map(function(c){return c.name;}).slice(0, 50);

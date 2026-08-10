@@ -1718,9 +1718,10 @@
         var _recentHistory = '';
         if (GM.shijiHistory && GM.shijiHistory.length > 0) {
           // 动态调整近端窗口（按 token 预算·若上下文紧张可减·若宽裕可增）
-          var _injCpRH = (typeof getCompressionParams === 'function') ? getCompressionParams() : { fullReadTurns: 5, briefReadTurns: 12 };
-          var _fullN = _injCpRH.fullReadTurns || 5;
-          var _briefN = _injCpRH.briefReadTurns || 12;
+          // 2026-08-10·省 token/提速：全文窗口 5→2 回合·中端 12→5 回合(200字)——中远端由故事速览(lorebook)补齐连续性
+          var _injCpRH = (typeof getCompressionParams === 'function') ? getCompressionParams() : { fullReadTurns: 2, briefReadTurns: 5 };
+          var _fullN = Math.min(_injCpRH.fullReadTurns || 5, 2);
+          var _briefN = Math.min(_injCpRH.briefReadTurns || 12, 5);
           var _allHistory = GM.shijiHistory;
           var _fullSlice = _allHistory.slice(-_fullN);
           var _briefSlice = _allHistory.slice(-_briefN, -_fullN); // 5-12 回合段
@@ -1759,8 +1760,8 @@
           if (_briefSlice.length > 0) {
             _recentHistory += '=== ' + (_fullN+1) + '-' + (_fullN+_briefSlice.length) + ' 回合前·摘要回顾 ===\n';
             _briefSlice.forEach(function(sh) {
-              _recentHistory += 'T' + sh.turn + ' [时政] ' + (sh.shizhengji || '').substring(0, 400) + '\n';
-              if (sh.shilu) _recentHistory += '       [实录] ' + (sh.shilu || '').substring(0, 150) + '\n';
+              _recentHistory += 'T' + sh.turn + ' [时政] ' + (sh.shizhengji || '').substring(0, 200) + '\n';
+              if (sh.shilu) _recentHistory += '       [实录] ' + (sh.shilu || '').substring(0, 80) + '\n';
               if (sh.edicts && typeof sh.edicts === 'object') {
                 var _eSum = [];
                 Object.keys(sh.edicts).forEach(function(cat) {
@@ -1774,6 +1775,8 @@
           }
           // 12+ 回合：靠下方注入的 _aiMemory 压缩段（已自动 sc25 后台触发）+ _memoryLayers L2/L3·此处不重复
         }
+        // 2026-08-10·故事速览(README 式本地档案·确定性维护·零 AI 成本)·补齐中远端连续性
+        try { if (typeof TM !== 'undefined' && TM.ContextLoreBook) { var _lbTxt = TM.ContextLoreBook.renderHistory(GM); if (_lbTxt) _recentHistory += _lbTxt; } } catch(_lbE) {}
         if (GM.evtLog && GM.evtLog.length > 0) {
           // B2：过滤已死角色的过往事件（epitaph 已摘要·避免死人复活）
           var _keyEvts = GM.evtLog.slice(-30).filter(function(e){ return !e._charDied; }).map(function(e) { return 'T' + e.turn + ' [' + e.type + '] ' + e.text; }).join('\n');
