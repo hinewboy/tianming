@@ -1333,8 +1333,8 @@
     // 固定字号在 10 倍下 = 100px+ 涂满——字号 = 屏显 11px / scale·保持屏显恒定
     var _fs = Math.max(1.0, Math.round(11 / (Number(state.mapView && state.mapView.scale) || 1) * 100) / 100);
     // 2026-08-11·府块线条同样反比 scale：stroke 随 transform 缩放(0.8px×10倍=8px粗线·用户"线条太大"反馈)→
-    // 屏显恒定 ~0.8px 细线
-    var _sw = Math.max(0.3, Math.round(0.8 / (Number(state.mapView && state.mapView.scale) || 1) * 100) / 100);
+    // 屏显恒定 ~0.8px 细线·下限 0.05(scale12 时 0.8/12=0.067 不被 0.3 下限抬高成 3px 粗线)
+    var _sw = Math.max(0.05, Math.round(0.8 / (Number(state.mapView && state.mapView.scale) || 1) * 100) / 100);
     // 2026-08-11·真实府州边界(CHGIS V6·tianqi-prefecture-polygons.js)：匹配到的府画真实 polygon·
     // 未匹配府回落网格矩形(tianqi-ming2 剧本含边镇卫所/天启新增府·CHGIS 万历版图未含)
     var PREFP = (typeof window !== 'undefined') ? (window.TM_MING_PREF_POLYGONS || null) : null;
