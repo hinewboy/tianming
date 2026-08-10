@@ -310,6 +310,8 @@
   var curGroup = '';
   var lastBeatIdx = -1;
   var groupKeys = [];
+  // 2026-08-10·闪屏修复：首帧场景图预加载完成前不上屏（黑底#0a0704→图加载完突现=闪屏）
+  var warmReady = false;
 
   function courtBlocked() {
     return typeof GM !== 'undefined' && GM && GM._isPostTurnCourt
@@ -526,6 +528,8 @@
       try {
         var blocked = courtBlocked();
         if (!root.classList.contains('show')) {
+          // 2026-08-10·闪屏修复：首帧图未就绪时哨兵不上屏，等 warm 预加载完成（start 内 1.2s 兜底）
+          if (!warmReady) return;
           if (!blocked && TM.Endturn.Progress.isActive()) reveal();
           return;
         }
@@ -543,6 +547,9 @@
   function startAmbient() {
     window.clearInterval(ambientTimer);
     if (reduceMotion) return;
+    // 2026-08-10·手机降载：小屏(≤720px)关闭场景轮换——340KB jpg × 10.5s 轮换 + 交叉淡化
+    // 在低端机又卡又闪，且手机过回合一般即竖屏等待；桌面保留轮换氛围。
+    if (window.matchMedia && window.matchMedia('(max-width: 720px)').matches) return;
     ambientTimer = window.setInterval(function() {
       if (document.hidden || swapping) return;
       setScene(nextSceneIndex());
@@ -593,7 +600,21 @@
     deck = shuffle(SCENES.length);
     setScene(nextSceneIndex(), true);
     startMirror();                       // 哨兵常开：朝会窗口期开闸时由它延迟上屏
-    if (!courtBlocked()) reveal();
+    // 2026-08-10·闪屏修复：首帧场景图预加载完成（或 1.2s 兜底）后才上屏，
+    // 消除黑底(#0a0704)→图加载完突现的闪屏；朝会窗口期仍由哨兵/startMirror 接管。
+    warmReady = false;
+    var _warmIdx = sceneAt >= 0 ? sceneAt : 0;
+    var _warm = new Image();
+    _warm.decoding = 'async';
+    function _warmReveal() {
+      if (warmReady) return;
+      warmReady = true;
+      try { if (!courtBlocked() && !root.classList.contains('show')) reveal(); } catch (_) {}
+    }
+    _warm.onload = _warmReveal;
+    _warm.onerror = _warmReveal;
+    _warm.src = sceneUrl(_warmIdx);
+    window.setTimeout(_warmReveal, 1200);
   }
 
   // 上屏（带入场动画）：start 的首屏、朝会结束的延迟上屏、暂避后的复出共用
