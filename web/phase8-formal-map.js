@@ -1339,8 +1339,8 @@
   function prefectureLayer(map, visibleRegions) {
     if (!map || state.mapScale !== 'prefecture') return '';
     // 2026-08-11·府名字号反比 scale(参考省级标签 LOD)：SVG text 随 transform 缩放·
-    // 固定字号在 10 倍下 = 100px+ 涂满——字号 = 屏显 11px / scale·保持屏显恒定(用户 13px 反馈太大→回到 11px)
-    var _fs = Math.max(1.0, Math.round(11 / (Number(state.mapView && state.mapView.scale) || 1) * 100) / 100);
+    // 固定字号在 10 倍下 = 100px+ 涂满——字号 = 屏显 9px / scale(用户两次反馈太大:13→11→9)·保持屏显恒定
+    var _fs = Math.max(0.8, Math.round(9 / (Number(state.mapView && state.mapView.scale) || 1) * 100) / 100);
     // 2026-08-11·府块线条同样反比 scale：stroke 随 transform 缩放(0.8px×10倍=8px粗线·用户"线条太大"反馈)→
     // 屏显恒定 ~1px 细线·下限 0.05(scale12 时 0.8/12=0.067 不被 0.3 下限抬高成 3px 粗线)
     var _sw = Math.max(0.05, Math.round(1.0 / (Number(state.mapView && state.mapView.scale) || 1) * 100) / 100);
@@ -1371,24 +1371,41 @@
       out += '</g>';
       // ② 府名标签层(clip 组外·不被省边界裁剪——2026-08-11·用户反馈府名被地图盖住一部分)
       out += '<g class="tmf-pref-label-layer">';
+      // 2026-08-11·同省府名防碰撞：收集本省所有府名锚点·贪心排列(冲突者下移 16px·治府名挤在一起)
+      var _prefLabels = [];
       if (PREFP) {
         var _rprefs2 = (r.data && r.data.children && r.data.children.length) ? r.data.children : (r.prefectures || []);
         _rprefs2.forEach(function(p) {
           if (!p || p.level !== 'prefecture' || !p.name) return;
           var poly = PREFP[p.name];
           if (!poly || !poly.polygon || poly.polygon.length < 4) return;
-          // 2026-08-11·标签锚点优先用数据里预计算的 label(中位数质心·更居中·治位置偏移)·
-          // 无则回落平均质心
           var cc = (poly.label && poly.label.length === 2) ? { x: poly.label[0], y: poly.label[1] } : polygonCentroid(poly.polygon);
-          out += '<g class="tmf-prefecture-label" data-pref="' + attr(p.name) + '" transform="translate(' + cc.x.toFixed(1) + ' ' + cc.y.toFixed(1) + ')">'
-            + '<text x="0" y="3" style="font-size:' + _fs + 'px;fill:#f2dfad;stroke:rgba(18,12,5,.85);stroke-width:0.18;paint-order:stroke;text-anchor:middle">' + esc(p.name) + '</text></g>';
+          _prefLabels.push({ name: p.name, x: cc.x, y: cc.y });
         });
       }
       cells.forEach(function(c) {
         if (PREFP && PREFP[c.name]) return;   // 已有真实边界·跳过
-        out += '<g class="tmf-prefecture-label" data-pref="' + attr(c.name) + '" transform="translate(' + c.cx.toFixed(1) + ' ' + c.cy.toFixed(1) + ')">'
-          + '<text x="0" y="3" style="font-size:' + _fs + 'px;fill:#f2dfad;stroke:rgba(18,12,5,.85);stroke-width:0.18;paint-order:stroke;text-anchor:middle">' + esc(c.name) + '</text></g>';
+        _prefLabels.push({ name: c.name, x: c.cx, y: c.cy });
       });
+      // 贪心防碰撞：按 x 排序·与已放置冲突(x 距 < 26 且 y 距 < 15)则下移 16px 重试
+      _prefLabels.sort(function(a, b) { return a.x - b.x; });
+      var _placed = [];
+      for (var _pi = 0; _pi < _prefLabels.length; _pi++) {
+        var _L = _prefLabels[_pi];
+        var _tries = 0;
+        while (_tries < 8) {
+          var _hit = false;
+          for (var _pj = 0; _pj < _placed.length; _pj++) {
+            var _Q = _placed[_pj];
+            if (Math.abs(_Q.x - _L.x) < 26 && Math.abs(_Q.y - _L.y) < 15) { _hit = true; break; }
+          }
+          if (!_hit) break;
+          _L.y += 16; _tries++;
+        }
+        _placed.push({ x: _L.x, y: _L.y });
+        out += '<g class="tmf-prefecture-label" data-pref="' + attr(_L.name) + '" transform="translate(' + _L.x.toFixed(1) + ' ' + _L.y.toFixed(1) + ')">'
+          + '<text x="0" y="3" style="font-size:' + _fs + 'px;fill:#f2dfad;stroke:rgba(18,12,5,.85);stroke-width:0.18;paint-order:stroke;text-anchor:middle">' + esc(_L.name) + '</text></g>';
+      }
       out += '</g>';
     });
     return out;
