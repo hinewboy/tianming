@@ -1208,11 +1208,18 @@ openSettings=function(){
     "<div class=\"fd q\"><label>\u5BF9\u8BDD\u5386\u53F2</label><input type=\"number\" id=\"s-mem-conv\" value=\""+(P.conf.convKeep||40)+"\" min=\"10\" max=\"200\"></div></div></div>"+
 
     // AI生成字数
+    "<div class=\"settings-section\"><h4>\u5E1D\u738B\u624B\u8BB0</h4>"+
+    "<div style=\"font-size:0.75rem;color:var(--txt-d);margin-bottom:0.4rem;\">\u5199\u7ED9 AI \u7684\u6218\u7565\u5907\u5FD8\uFF08\u6069\u6028/\u653F\u7B56\u610F\u56FE/\u8FDC\u671F\u8BA1\u5212\uFF09\uFF0C\u6BCF\u56DE\u5408\u6CE8\u5165\u63A8\u6F14 prompt\uFF0C\u8BA9 AI \u66F4\u61C2\u4F60\u7684\u5FC3\u601D\u3002\u2264500 \u5B57\u3002</div>"+
+    "<textarea id=\"s-imperial-notes\" maxlength=\"500\" rows=\"4\" style=\"width:100%;box-sizing:border-box;background:var(--bg-3);color:var(--txt);border:1px solid var(--border);border-radius:6px;padding:0.5rem;\">"+((typeof _escHtml==='function')?_escHtml(P.conf.imperialNotes||''):(P.conf.imperialNotes||''))+"</textarea>"+
+    "<div style=\"margin-top:0.4rem;display:flex;gap:0.5rem;align-items:center;\">"+
+    "<button class=\"bt bsm\" onclick=\"_saveImperialNotes()\">\u4FDD\u5B58\u624B\u8BB0</button>"+
+    "<span style=\"font-size:0.72rem;color:var(--txt-d);\" id=\"s-notes-hint\"></span></div></div>"+
+
     "<div class=\"settings-section\"><h4>AI\u751F\u6210\u5B57\u6570</h4>"+
     "<div style=\"font-size:0.75rem;color:var(--txt-d);margin-bottom:0.5rem;\">\u63A7\u5236\u5404\u7C7B\u5185\u5BB9\u7684\u751F\u6210\u5B57\u6570\uFF0C\u4F1A\u4E0E\u6A21\u578B\u4E0A\u4E0B\u6587\u7A97\u53E3\u8054\u52A8\u7F29\u653E</div>"+
     "<div style=\"display:flex;gap:0.5rem;margin-bottom:0.6rem;flex-wrap:wrap;\">"+
-    "<label class=\"wd-preset-label\"><input type=\"radio\" name=\"s-verbosity\" value=\"concise\" "+(P.conf.verbosity==='concise'?'checked':'')+"> \u7CBE\u7B80<span style=\"font-size:0.7rem;color:var(--txt-d);display:block;\">\u00D70.6 \u7701token</span></label>"+
-    "<label class=\"wd-preset-label\"><input type=\"radio\" name=\"s-verbosity\" value=\"standard\" "+((P.conf.verbosity||'standard')==='standard'?'checked':'')+"> \u6807\u51C6<span style=\"font-size:0.7rem;color:var(--txt-d);display:block;\">\u00D71.0 \u63A8\u8350</span></label>"+
+    "<label class=\"wd-preset-label\"><input type=\"radio\" name=\"s-verbosity\" value=\"concise\" "+((P.conf.verbosity||'concise')==='concise'?'checked':'')+"> \u7CBE\u7B80<span style=\"font-size:0.7rem;color:var(--txt-d);display:block;\">\u00D70.6 \u7701token</span></label>"+
+    "<label class=\"wd-preset-label\"><input type=\"radio\" name=\"s-verbosity\" value=\"standard\" "+((P.conf.verbosity||'concise')==='standard'?'checked':'')+"> \u6807\u51C6<span style=\"font-size:0.7rem;color:var(--txt-d);display:block;\">\u00D71.0 \u63A8\u8350</span></label>"+
     "<label class=\"wd-preset-label\"><input type=\"radio\" name=\"s-verbosity\" value=\"detailed\" "+(P.conf.verbosity==='detailed'?'checked':'')+"> \u8BE6\u5C3D<span style=\"font-size:0.7rem;color:var(--txt-d);display:block;\">\u00D71.5 \u6C89\u6D78</span></label>"+
     "<label class=\"wd-preset-label\"><input type=\"radio\" name=\"s-verbosity\" value=\"custom\" "+(P.conf.verbosity==='custom'?'checked':'')+"> \u81EA\u5B9A\u4E49<span style=\"font-size:0.7rem;color:var(--txt-d);display:block;\">\u624B\u52A8\u8C03</span></label>"+
     "</div>"+
@@ -1474,6 +1481,21 @@ function _sMaxoutToggle() {
   var inp = _$('s-maxout-val');
   if (inp) inp.disabled = (mode !== 'manual');
   _sUpdateMaxoutInfo();
+}
+
+/** 保存帝王手记（2026-08-10）——玩家战略备忘·每回合注入推演 prompt */
+function _saveImperialNotes() {
+  try {
+    var el = _$('s-imperial-notes');
+    if (!el) return;
+    var txt = String(el.value || '').trim().slice(0, 500);
+    if (!P.conf) P.conf = {};
+    P.conf.imperialNotes = txt;
+    if (typeof saveP === 'function') saveP();
+    var hint = _$('s-notes-hint');
+    if (hint) hint.textContent = '\u5DF2\u4FDD\u5B58\uFF08' + txt.length + '/500 \u5B57\uFF09';
+    if (typeof toast === 'function') toast('\u5E1D\u738B\u624B\u8BB0\u5DF2\u4FDD\u5B58');
+  } catch (_e) {}
 }
 
 /** 显示当前输出上限信息 */

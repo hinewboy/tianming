@@ -1106,7 +1106,7 @@ var _charRangeDefaults = {
  */
 function _getCharRange(category) {
   var base = _charRangeDefaults[category] || [100, 300];
-  var v = (P && P.conf && P.conf.verbosity) ? P.conf.verbosity : 'standard';
+  var v = (P && P.conf && P.conf.verbosity) ? P.conf.verbosity : 'concise';
   if (v === 'custom') {
     var minKey = category + 'Min', maxKey = category + 'Max';
     return [

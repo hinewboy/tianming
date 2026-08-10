@@ -2890,6 +2890,11 @@
     //  NPC↔NPC 交互指令（核心升级：世界不围绕玩家旋转）
     // ══════════════════════════════════════════════════════════════
     _mark('player');
+    // 帝王手记（2026-08-10·玩家战略备忘注入·≤500字·意图对齐减少误解重推）
+    try {
+      var _impNotes = (P && P.conf && P.conf.imperialNotes) ? String(P.conf.imperialNotes).trim() : '';
+      if (_impNotes) sysP += '\n\n【帝王手记·君心所念】\n' + _impNotes.slice(0, 500);
+    } catch (_ie) {}
     sysP += '\n\n【NPC之间的自主交互——极其重要】';
     sysP += '\n世界不是"玩家 vs 所有NPC"的单一结构。NPC之间有自己的恩怨、合作、竞争、阴谋。';
     sysP += '\n每回合的npc_actions中，至少一半应该是NPC对NPC的行为（而非NPC对玩家的行为）：';

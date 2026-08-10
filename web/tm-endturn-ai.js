@@ -66,8 +66,11 @@
         return Math.max(500, Math.min(baseTok, P.conf.maxOutputTokens));
       }
       // 2026-08-10·省 token 优化：自动模式不再放空（放空 = 模型自由发挥·话痨模型输出爆炸）。
-      // 以调用点设计值 baseTok 为上限·并受 _effectiveOutCap（模型能力/上下文 1/8 检测）封顶。
+      // 上限 = min(调用点设计值 baseTok, max(模型能力检测 _effectiveOutCap, 8192))——
+      // 保证 ≥8K 不截断正常推演（截断→JSON 修复重试反而更费 token 且伤可玩性），
+      // 同时封住话痨模型无限输出。
       var _cap = (_effectiveOutCap && _effectiveOutCap > 0) ? _effectiveOutCap : 8192;
+      if (_cap < 8192) _cap = 8192;
       return Math.max(500, Math.min(baseTok, _cap));
     }
     function _buildFetchBody(model, messages, temperature, baseTok, extra) {
