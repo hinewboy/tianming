@@ -1148,8 +1148,8 @@
     return sc >= 2.3 ? 'prefecture' : (sc >= 1.3 ? 'region' : 'realm');
   }
   function bandToScale(band){
-    // 2026-08-10·府州档默认放大(3.0→5.2)：43省全图下359府标签太挤不可交互·放大到府州细节可见
-    return band === 'prefecture' ? 5.2 : (band === 'realm' ? 1.0 : 1.7);
+    // 2026-08-10·府州档默认放大(5.2→10)：府名密集需大比例才可交互·用户实测反馈 5.2 仍显小
+    return band === 'prefecture' ? 10 : (band === 'realm' ? 1.0 : 1.7);
   }
   function _syncScaleLevelFromZoom(){
     if (state._zoomLevelLinkOff) return;  // 逃生阀:置真则关 zoom 联动(纯按钮切层)
