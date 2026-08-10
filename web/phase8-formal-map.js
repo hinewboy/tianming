@@ -1257,9 +1257,10 @@
   // 2026-08-10·府州地块层：府州档时把每省按府数网格切分成"府州块"(矩形单元)·
   // 用 SVG clipPath 裁剪到省 polygon 边界(零几何计算·自动贴合省形状)·仿省级地块样式(边界+填充+府名)
   function prefectureCells(region) {
+    // 数据源优先级：data.children(富数据:人口/财赋/地形) > prefectures(简版)
     var prefs = null;
-    if (region.prefectures && region.prefectures.length) prefs = region.prefectures;
-    else if (region.data && region.data.children && region.data.children.length) prefs = region.data.children;
+    if (region.data && region.data.children && region.data.children.length) prefs = region.data.children;
+    else if (region.prefectures && region.prefectures.length) prefs = region.prefectures;
     if (!prefs) return [];
     prefs = prefs.filter(function(p) { return p && p.name && p.level === 'prefecture'; });
     if (!prefs.length) return [];
@@ -1281,7 +1282,7 @@
       var col = i % cols, row = Math.floor(i / cols);
       var x0 = minX + col * cw + cw * 0.13, x1 = minX + (col + 1) * cw - cw * 0.13;
       var y0 = minY + row * ch + ch * 0.13, y1 = minY + (row + 1) * ch - ch * 0.13;
-      out.push({ name: p.name, x0: x0, y0: y0, x1: x1, y1: y1, cx: (x0 + x1) / 2, cy: (y0 + y1) / 2 });
+      out.push({ name: p.name, prefId: p.id || '', x0: x0, y0: y0, x1: x1, y1: y1, cx: (x0 + x1) / 2, cy: (y0 + y1) / 2 });
     });
     return out;
   }
@@ -1297,7 +1298,7 @@
       out += '<clipPath id="' + cid + '"><path d="' + attr(d) + '"></path></clipPath>';
       out += '<g class="tmf-prefecture-block" clip-path="url(#' + cid + ')">';
       cells.forEach(function(c) {
-        out += '<path class="tmf-pref-cell" data-pref="' + attr(c.name) + '" d="M' + c.x0.toFixed(1) + ' ' + c.y0.toFixed(1) + ' L' + c.x1.toFixed(1) + ' ' + c.y0.toFixed(1) + ' L' + c.x1.toFixed(1) + ' ' + c.y1.toFixed(1) + ' L' + c.x0.toFixed(1) + ' ' + c.y1.toFixed(1) + ' Z"></path>';
+        out += '<path class="tmf-pref-cell" data-pref="' + attr(c.name) + '" data-pref-id="' + attr(c.prefId || '') + '" data-province="' + attr(r.name || '') + '" d="M' + c.x0.toFixed(1) + ' ' + c.y0.toFixed(1) + ' L' + c.x1.toFixed(1) + ' ' + c.y0.toFixed(1) + ' L' + c.x1.toFixed(1) + ' ' + c.y1.toFixed(1) + ' L' + c.x0.toFixed(1) + ' ' + c.y1.toFixed(1) + ' Z"></path>';
         out += '<g class="tmf-prefecture-label" transform="translate(' + c.cx.toFixed(1) + ' ' + c.cy.toFixed(1) + ')">'
           + '<circle r="2.2" class="tmf-pref-dot"></circle>'
           + '<text x="5" y="3">' + esc(c.name) + '</text></g>';
@@ -1449,6 +1450,7 @@
     renderMapAlerts(map);
     syncMapSearch(map);
     bindRegionPathEvents(map);
+    bindPrefectureCellEvents(map);   // 2026-08-10·府州块点击 → 方志
     scheduleLabelLayout();      // P1·首渲后算标签防重叠+LOD
   }
 
@@ -1618,6 +1620,51 @@
       });
     });
     if (!regions.length) return;
+  }
+
+  // 2026-08-10·府州地块点击 → 方志（仿省级说明栏）：府数据字段与省级同构(人口/财赋/地形/结构)·
+  // 构造"伪 region"(data=府数据·几何继承省)后复用 openRegionDossier 方志册页
+  function findPrefectureByName(map, name){
+    if (!map || !name) return null;
+    for (var i = 0; i < map.regions.length; i++) {
+      var r = map.regions[i];
+      var prefs = (r.data && r.data.children && r.data.children.length) ? r.data.children : (r.prefectures && r.prefectures.length) ? r.prefectures : [];
+      for (var j = 0; j < prefs.length; j++) {
+        if (String(prefs[j].name) === String(name)) return { region: r, pref: prefs[j] };
+      }
+    }
+    return null;
+  }
+  function bindPrefectureCellEvents(map){
+    document.querySelectorAll('#tmf-formal-map .tmf-pref-cell').forEach(function(el){
+      if (el.__phase8PrefBound) return;
+      el.__phase8PrefBound = true;
+      el.addEventListener('click', function(e){
+        if (state.dragSuppressClick) return;
+        e.stopPropagation();
+        var name = el.dataset.pref;
+        var hit = findPrefectureByName(map, name);
+        if (!hit) return;
+        var r = hit.region, p = hit.pref;
+        var pseudo = {
+          id: 'pref-' + String(p.id || name),
+          sourceId: r.sourceId,
+          name: p.name,
+          title: p.name,
+          level: 'prefecture',
+          divisionType: p.divisionType || '府',
+          adminBinding: p.id || ('pref-' + name),   // 府自身 id·避免误匹配省级 live 数据覆盖府数据
+          mapRegionId: r.mapRegionId || r.id,
+          data: p,
+          points: r.points,
+          centroid: r.centroid,
+          ownerKey: r.ownerKey, ownerName: r.ownerName, factionName: r.factionName,
+          color: r.color, factionColor: r.factionColor,
+          _prefectureDossier: true
+        };
+        openRegionDossier(pseudo);
+      });
+    });
   }
 
   // ── 签注内容（2026-06-11）：hover 小笺按视图给核心读数 + 判语 ──────────
