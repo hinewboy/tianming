@@ -20,7 +20,9 @@ ok(/function clampMapView\(v\)/.test(mapSrc), 'clampMapView 在');
 ok(/var v = clampMapView\(state\.mapView/.test(mapSrc), 'applyMapTransform 单点收口走 clamp');
 ok(/state\._mapVBW = width; state\._mapVBH = height;/.test(mapSrc), 'viewBox 尺寸存 state(单一来源)');
 ok(/以视口中心为锚重算平移/.test(mapSrc), '尺度切档中心锚在');
-ok(/_cw - \(_cw - \(Number\(state\.mapView\.tx\) \|\| 0\)\) \* \(_s2 \/ _s1\)/.test(mapSrc), '中心锚公式在(tx)');
+// 2026-08-11·按钮切档改为统一 animateMapView(中心锚公式 + 平滑动画)·smoke 锚定新实现
+ok(/var _cxp = \(_cw - \(Number\(state\.mapView\.tx\) \|\| 0\)\) \/ _s1;/.test(mapSrc), '中心锚公式在(tx·animateMapView 版)');
+ok(/animateMapView\(_s2, _cw - _cxp \* _s2, _ch - _cyp \* _s2, 260\)/.test(mapSrc), '按钮切档走平滑动画');
 
 console.log('— Y2 · 府州稀疏回落 —');
 ok(/稀疏回落\(2026-07-03\)/.test(mapSrc), '稀疏回落段在');
