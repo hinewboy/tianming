@@ -1148,7 +1148,8 @@
     return sc >= 2.3 ? 'prefecture' : (sc >= 1.3 ? 'region' : 'realm');
   }
   function bandToScale(band){
-    return band === 'prefecture' ? 3.0 : (band === 'realm' ? 1.0 : 1.7);
+    // 2026-08-10·府州档默认放大(3.0→5.2)：43省全图下359府标签太挤不可交互·放大到府州细节可见
+    return band === 'prefecture' ? 5.2 : (band === 'realm' ? 1.0 : 1.7);
   }
   function _syncScaleLevelFromZoom(){
     if (state._zoomLevelLinkOff) return;  // 逃生阀:置真则关 zoom 联动(纯按钮切层)
@@ -1252,6 +1253,34 @@
       return regions.filter(function(r){ return want.indexOf(regionTier(r)) < 0; }).concat(filtered);
     }
     return filtered;
+  }
+  // 2026-08-10·府州标签层：府州档时在各省 polygon 内按环形分布标注府名
+  // 数据源：剧本 map 的 region.prefectures（359 府·含 name/level/terrain 等富属性）
+  function prefectureLabelLayer(map, visibleRegions) {
+    if (!map || state.mapScale !== 'prefecture') return '';
+    var out = '';
+    (visibleRegions || []).forEach(function(r) {
+      var prefs = null;
+      if (r.prefectures && r.prefectures.length) prefs = r.prefectures;
+      else if (r.data && r.data.children && r.data.children.length) prefs = r.data.children;
+      if (!prefs) return;
+      prefs = prefs.filter(function(p) { return p && p.name && p.level === 'prefecture'; });
+      if (!prefs.length) return;
+      var c = r.centroid || actualCenter(r);
+      if (!c) return;
+      var n = prefs.length;
+      var R = Math.max(30, Math.min(95, 22 + n * 3.6));
+      prefs.forEach(function(p, i) {
+        var ang = (i / n) * 2 * Math.PI - Math.PI / 2;
+        var x = c.x + Math.cos(ang) * R;
+        var y = c.y + Math.sin(ang) * R * 0.82;
+        out += '<g class="tmf-prefecture-label" data-pref="' + attr(p.name) + '" transform="translate(' + x.toFixed(1) + ' ' + y.toFixed(1) + ')">'
+          + '<circle r="2.6" class="tmf-pref-dot"></circle>'
+          + '<text x="6" y="3">' + esc(p.name) + '</text>'
+          + '</g>';
+      });
+    });
+    return out;
   }
   function renderFormalMap(){
     var shell = document.getElementById('tm-phase8-main-shell');
@@ -1381,6 +1410,7 @@
           '<g class="tmf-region-washes">' + regionWashes + '</g>' +
           '<g class="tmf-region-halos">' + regionHalos + '</g>' +
           '<g class="tmf-region-layer ming-admin-layer">' + regionPaths + '</g>' +
+          '<g class="tmf-prefecture-layer">' + prefectureLabelLayer(map, visibleRegions) + '</g>' +
           '<g class="tmf-faction-label-layer">' + factionLabelLayer(map) + '</g>' +
           '<g class="tmf-sentinel-layer">' + sentinelLayer(map) + '</g>' +
           '<rect class="tmf-map-grain" x="0" y="0" width="' + width + '" height="' + height + '"></rect>' +
