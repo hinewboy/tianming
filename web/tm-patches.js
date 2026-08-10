@@ -1489,13 +1489,42 @@ function _saveImperialNotes() {
     var el = _$('s-imperial-notes');
     if (!el) return;
     var txt = String(el.value || '').trim().slice(0, 500);
-    if (!P.conf) P.conf = {};
-    P.conf.imperialNotes = txt;
+    if (!P.conf) P.conf = {}; // arch-ok 设置页/主页共用写口·与 _togglePConf 兜底同范式
+    P.conf.imperialNotes = txt; // arch-ok 帝王手记持久化·P.conf 随档自动保存
     if (typeof saveP === 'function') saveP();
     var hint = _$('s-notes-hint');
     if (hint) hint.textContent = '\u5DF2\u4FDD\u5B58\uFF08' + txt.length + '/500 \u5B57\uFF09';
     if (typeof toast === 'function') toast('\u5E1D\u738B\u624B\u8BB0\u5DF2\u4FDD\u5B58');
   } catch (_e) {}
+}
+
+/** 帝王手记·主页快捷入口（2026-08-10）——与设置页共用同一 textarea id 与保存函数 _saveImperialNotes */
+function openImperialNotes() {
+  try {
+    var old = document.getElementById('tm-imperial-notes-modal');
+    if (old) old.remove();
+    var modal = document.createElement('div');
+    modal.id = 'tm-imperial-notes-modal';
+    modal.className = 'modal-bg show';
+    var cur = (P && P.conf && P.conf.imperialNotes) || '';
+    modal.innerHTML =
+      '<div style="background:var(--bg-1);border:1px solid var(--gold-d);border-radius:12px;width:92%;max-width:640px;max-height:86vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 0 60px rgba(0,0,0,0.55);">'
+      + '<div style="padding:0.9rem 1.2rem;border-bottom:1px solid var(--bdr);display:flex;justify-content:space-between;align-items:center;">'
+      + '<div style="font-size:1.05rem;font-weight:700;color:var(--gold);letter-spacing:0.12em;">\u5E1D 王 手 记</div>'
+      + '<button class="bt bs bsm" onclick="this.closest(\'.modal-bg\').remove()">\u2715</button></div>'
+      + '<div style="flex:1;overflow-y:auto;padding:1.2rem 1.4rem;">'
+      + '<div style="font-size:0.78rem;color:var(--txt-d);margin-bottom:0.6rem;line-height:1.6;">\u5199\u7ED9 AI \u7684\u6218\u7565\u5907\u5FD8\uFF08\u6069\u6028 / \u653F\u7B56\u610F\u56FE / \u8FDC\u671F\u8BA1\u5212\uFF09\uFF0C\u6BCF\u56DE\u5408\u81EA\u52A8\u6CE8\u5165\u63A8\u6F14 prompt\uFF0C\u8BA9 AI \u66F4\u61C2\u4F60\u7684\u5FC3\u601D\u3002\u2264500 \u5B57\u3002</div>'
+      + '<textarea id="s-imperial-notes" maxlength="500" rows="6" style="width:100%;box-sizing:border-box;background:var(--bg-3);color:var(--txt);border:1px solid var(--border);border-radius:6px;padding:0.6rem;font-size:0.9rem;">'
+      + ((typeof escHtml === 'function') ? escHtml(cur) : cur)
+      + '</textarea>'
+      + '<div style="margin-top:0.7rem;display:flex;gap:0.6rem;align-items:center;justify-content:space-between;">'
+      + '<span style="font-size:0.75rem;color:var(--txt-d);" id="s-notes-hint">' + (cur ? ('\u5DF2\u4FDD\u5B58\uFF08' + cur.length + '/500 \u5B57\uFF09') : '') + '</span>'
+      + '<button class="bt bp" onclick="_saveImperialNotes()">\u4FDD\u5B58\u624B\u8BB0</button>'
+      + '</div></div></div>';
+    document.body.appendChild(modal);
+    var ta = document.getElementById('s-imperial-notes');
+    if (ta) ta.focus();
+  } catch (_e) { try { if (window.toast) toast('\u5E1D\u738B\u624B\u8BB0\u6253\u5F00\u5931\u8D25'); } catch(_){} }
 }
 
 /** 显示当前输出上限信息 */

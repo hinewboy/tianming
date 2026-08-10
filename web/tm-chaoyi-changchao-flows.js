@@ -1128,29 +1128,36 @@ async function _cc3_open(opts) {
   // 用 GM 数据覆盖 mock CHARS / AGENDA / state.prestige/power
   _cc3_overrideMockWithGM();
 
-  // 异步加载议程（AI 生成）
-  try {
-    console.log('[cc3] _cc3_open·开始 buildAgenda');
-    // 2026-08-10 agenda timeout guard: max 60s, fallback agenda on timeout
-    const items = await Promise.race([
-      _cc3_buildAgendaFromGM(),
-      new Promise(function (_res) { setTimeout(function () { _res(null); }, 60000); })
-    ]);
-    if (!items) { console.warn('[cc3] _cc3_open agenda timeout -> fallback'); throw new Error('agenda timeout'); }
-    AGENDA.length = 0;
-    items.forEach(it => AGENDA.push(it));
-    console.log('[cc3] _cc3_open·议程已载入·共 ' + AGENDA.length + ' 条', AGENDA);
-  } catch (e) {
-    console.error('[cc3] _cc3_open·buildAgenda 抛错', e);
-    try { window.TM && TM.errors && TM.errors.captureSilent(e, 'tm-chaoyi-v3:open'); } catch (_) {}
-    // 即使 buildAgenda 失败·也要给个最小议程让流程能跑
-    AGENDA.length = 0;
-    AGENDA.push({
-      presenter: '内侍', dept: '内廷', type: 'routine', urgency: 'normal',
-      title: '日常无事', announceLine: '今日并无紧要奏报。',
-      detail: '百官今日并无紧要事务奏闻陛下。', controversial: 0, importance: 1, _fallback: true
-    });
-  }
+  // 异步加载议程（AI 生成）——2026-08-10 朔朝提速：不再阻塞进朝（旧实现先等 AI 最长 60s 才显示朝堂）。
+  // 现在 modal/班次/鸣鞭仪礼立即开演，议程后台生成；runNextItem 前自动等待（有 loading 提示），
+  // 通常仪礼演完时议程已就绪，玩家无感。60s 超时兜底保留。
+  state._agendaReady = false;
+  state._agendaPromise = (async function () {
+    try {
+      console.log('[cc3] _cc3_open·后台 buildAgenda 启动');
+      // 2026-08-10 agenda timeout guard: max 60s, fallback agenda on timeout
+      const items = await Promise.race([
+        _cc3_buildAgendaFromGM(),
+        new Promise(function (_res) { setTimeout(function () { _res(null); }, 60000); })
+      ]);
+      if (!items) { console.warn('[cc3] _cc3_open agenda timeout -> fallback'); throw new Error('agenda timeout'); }
+      AGENDA.length = 0;
+      items.forEach(it => AGENDA.push(it));
+      console.log('[cc3] _cc3_open·议程已载入·共 ' + AGENDA.length + ' 条', AGENDA);
+    } catch (e) {
+      console.error('[cc3] _cc3_open·buildAgenda 抛错', e);
+      try { window.TM && TM.errors && TM.errors.captureSilent(e, 'tm-chaoyi-v3:open'); } catch (_) {}
+      // 即使 buildAgenda 失败·也要给个最小议程让流程能跑
+      AGENDA.length = 0;
+      AGENDA.push({
+        presenter: '内侍', dept: '内廷', type: 'routine', urgency: 'normal',
+        title: '日常无事', announceLine: '今日并无紧要奏报。',
+        detail: '百官今日并无紧要事务奏闻陛下。', controversial: 0, importance: 1, _fallback: true
+      });
+    }
+    state._agendaReady = true;
+    try { if (typeof _cc3_renderAgendaList === 'function') _cc3_renderAgendaList(); } catch (_) {}
+  })();
 
   // 重置 state·跑 runOpening
   state.currentIdx = 0;

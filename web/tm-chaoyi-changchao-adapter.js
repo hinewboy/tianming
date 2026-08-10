@@ -359,7 +359,9 @@ async function _cc3_buildAgendaFromGM() {
       }
     } catch (e) { console.warn('[cc3·agenda] 状态注入异常·继续', e && e.message); }
     console.log('[cc3·agenda] 调用 AI·prompt 长度=' + prompt.length);
-    const tok = (typeof _aiDialogueTok === "function") ? Math.max(5000, _aiDialogueTok("cy", 9)) : 8000;
+    // 2026-08-10·省 token+提速：议程只需 5~8 条 JSON·旧公式按 9 人朝议给 ~21K 输出上限纯浪费
+    //（模型被带着写超长议程→又慢又贵）。封顶 2600 tokens·足够 8 条议程+JSON 包装。
+    const tok = Math.min(2600, Math.max(1200, (typeof _aiDialogueTok === "function") ? _aiDialogueTok("cy", 2) : 2000));
     // 带 system prompt（朝代/玩家/规制/风格 + 时令/国势）·prompt cache 命中
     const messages = _cc3_makeMessagesWithSystem(prompt);
     const raw = (typeof callAIMessages === 'function')

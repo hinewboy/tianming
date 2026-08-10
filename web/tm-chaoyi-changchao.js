@@ -1951,6 +1951,11 @@ async function runOpening() {
 }
 
 async function runNextItem() {
+  // 2026-08-10·朔朝提速：议程改为后台生成（_cc3_open 不再阻塞进朝）——未就绪时先等，带提示
+  if (state._agendaReady === false && state._agendaPromise) {
+    try { if (typeof setPhase === 'function') setPhase('【拟 议 程】', '阁臣代拟今日奏目·稍候……'); } catch (_) {}
+    try { await state._agendaPromise; } catch (_) {}
+  }
   try { _cc3_renderAgendaList(); } catch(_) {}
   console.log('[cc3] runNextItem·idx=' + state.currentIdx + '·AGENDA.length=' + AGENDA.length);
   if (state.currentIdx >= AGENDA.length) {

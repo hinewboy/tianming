@@ -68,18 +68,18 @@
   //   下次开游戏的会话据「各 profile 实际字数 log」逐个启用：sc17/27/28/25/07→LITE、sc16/18→FAC，
   //   跑一回合冒烟看无幻觉告警后再扩。改这张表即调，不动 build()/调用点。
   global.TM.Endturn.AI.prompt.SYS_PROFILES = {
-    NPC:  { base:1, worldPlan:1, worldSocial:1, worldGov:1, worldLifecycle:1, events:1, context:1, player:1, npcDeep:1, letters:1, socialRules:1, roster:1, digest:1, tail:1 },
-    FAC:  { base:1, worldPlan:1, worldSocial:1, events:1, context:1, roster:1, tail:1 },
-    LITE: { base:1, worldGov:1, context:1, roster:1, tail:1 },
+    NPC:  { stableHead:1, stableRules:1, stableIron:1, base:1, worldPlan:1, worldSocial:1, worldGov:1, worldLifecycle:1, events:1, context:1, player:1, npcDeep:1, letters:1, socialRules:1, roster:1, digest:1, tail:1 },
+    FAC:  { stableHead:1, stableRules:1, stableIron:1, base:1, worldPlan:1, worldSocial:1, events:1, context:1, roster:1, tail:1 },
+    LITE: { stableHead:1, stableRules:1, stableIron:1, base:1, worldGov:1, context:1, roster:1, tail:1 },
     // [sysP分级·2026-07-02] 定制档——测绘修正原计划两处坑：sc27 用 LITE 会丢 personnel 桶(current_issues/输出字段目录·
     //   诏令推进靠它)；sc07 用 LITE 会丢 npcDeep(性格/弧线/记忆一致性规则)与 digest(称谓系统/人物关系网)。
     // [二批·拆worldState四子段] worldPlan(预演规划/关系矩阵·半静态)+worldSocial(势力自治规则/党派阶层/矛盾/历史地理)+
     //   worldGov(诏令执行环境/营造经济/国策/区划/提案预警)+worldLifecycle(社会生灭schema·产生灭字段者才需·实际仅sc1=FULL带)。
     //   分配原则=该调用产什么字段/读什么域：FAC(战略军事)要Plan+Social不要Gov细账；LITE/EDICT(财政/诏令)要Gov不要Plan/Social；
     //   SNAP(快照)要Social+Gov当前态不要Plan规划meta；COG(认知)要Plan(隐藏议程)+Social(党派)不要Gov。
-    EDICT: { base:1, worldGov:1, context:1, personnel:1, roster:1, tail:1 },
-    SNAP:  { base:1, worldSocial:1, worldGov:1, digest:1, context:1, roster:1, tail:1 },
-    COG:   { base:1, worldPlan:1, worldSocial:1, player:1, npcDeep:1, digest:1, context:1, roster:1, tail:1 },
+    EDICT: { stableHead:1, stableRules:1, stableIron:1, base:1, worldGov:1, context:1, personnel:1, roster:1, tail:1 },
+    SNAP:  { stableHead:1, stableRules:1, stableIron:1, base:1, worldSocial:1, worldGov:1, digest:1, context:1, roster:1, tail:1 },
+    COG:   { stableHead:1, stableRules:1, stableIron:1, base:1, worldPlan:1, worldSocial:1, player:1, npcDeep:1, digest:1, context:1, roster:1, tail:1 },
     // [三批·谨慎区·2026-07-02] 逐调用点实审后定档(callsite 语义而非成本文档名)：
     //   NARR(叙事大纲/成文):事实面已由 _buildSc2FactsCore 同源喂 user prompt·sysP 供史观/口吻(base)+
     //     前情(context/digest)+人物(player/npcDeep/worldSocial 党派阶层背景)+roster 防火墙·不需 Gov 细账/Plan 规划meta;
@@ -88,12 +88,12 @@
     //   MEMW(记忆回写):事实全在 user prompt·sysP 供身份接地(npcDeep)+roster;
     //   MEMC(记忆合成 scTac/scStr/sc25):综述主线/势力向量·要 Social+digest·不需 Plan/Gov;
     //   ENRICH(sc19 丰化):补人物党派身世·要 Social(党派阶层背景)+base(史观数值基准)+roster(防撞名)。
-    NARR:    { base:1, events:1, digest:1, context:1, player:1, npcDeep:1, worldSocial:1, roster:1, tail:1 },
-    REVIEW:  { base:1, context:1, roster:1, tail:1 },
-    NPCDEEP: { base:1, worldPlan:1, worldSocial:1, events:1, context:1, player:1, npcDeep:1, letters:1, socialRules:1, digest:1, roster:1, tail:1 },
-    MEMW:    { base:1, context:1, npcDeep:1, roster:1, tail:1 },
-    MEMC:    { base:1, worldSocial:1, digest:1, context:1, roster:1, tail:1 },
-    ENRICH:  { base:1, worldSocial:1, context:1, roster:1, tail:1 }
+    NARR:    { stableHead:1, stableRules:1, stableIron:1, base:1, events:1, digest:1, context:1, player:1, npcDeep:1, worldSocial:1, roster:1, tail:1 },
+    REVIEW:  { stableHead:1, stableRules:1, stableIron:1, base:1, context:1, roster:1, tail:1 },
+    NPCDEEP: { stableHead:1, stableRules:1, stableIron:1, base:1, worldPlan:1, worldSocial:1, events:1, context:1, player:1, npcDeep:1, letters:1, socialRules:1, digest:1, roster:1, tail:1 },
+    MEMW:    { stableHead:1, stableRules:1, stableIron:1, base:1, context:1, npcDeep:1, roster:1, tail:1 },
+    MEMC:    { stableHead:1, stableRules:1, stableIron:1, base:1, worldSocial:1, digest:1, context:1, roster:1, tail:1 },
+    ENRICH:  { stableHead:1, stableRules:1, stableIron:1, base:1, worldSocial:1, context:1, roster:1, tail:1 }
   };
   global.TM.Endturn.AI.prompt.SYS_PROFILE_OF = {
     // [sysP分级·2026-07-02] 首批启用——受总闸 P.conf.sysPTieringEnabled 门控(默认关=全FULL=零行为变更·
@@ -2354,6 +2354,7 @@
       var _styleNames = {biannian:'编年体(仿《资治通鉴》)',shilu:'实录体(仿各朝实录)',jizhuan:'纪传体(仿《史记》)',jishi:'纪事本末体(仿《通鉴纪事本末》)',biji:'笔记体(仿《世说新语》)',custom:P.chronicleConfig.customStyleDesc||'自定义'};
       sysP += '\n叙事笔法：' + (_styleNames[P.chronicleConfig.style] || P.chronicleConfig.style);
     }
+    _mark('stableHead');
     // ★ 时空约束（防 AI 用未来史实知识·防 NPC 说还活着的人已死）
     if (typeof _buildTemporalConstraint === 'function') {
       try { sysP += _buildTemporalConstraint(null); } catch(e){ if(window.TM&&TM.errors) TM.errors.capture(e,'endturn.buildTemporalConstraint'); }
@@ -2379,6 +2380,7 @@
       sysP += '\n★ 规则：所有长期诏书每回合都必须体现效果·不可忘记。效果可正可负·可前好后坏或反之。在 shizhengji/zhengwen 中体现·在 var_changes 中实化。';
     }
 
+    _mark('dynMid');
     // Phase 2 Slice 1·硬约束块抽到 sysP·走 cache·全管线共享 (sc1/sc1b/sc1c/sc1d/sc15/sc16/sc17/sc18/sc2/sc27 均受益)
     // 旧·SC1 user prompt 每回合 380 字硬约束重复发·占 prompt tokens 又 cache miss
     // 新·sysP 一份·只有死亡名单/诈死名单 (动态) 留 user prompt
@@ -2399,6 +2401,7 @@
     // ★ 典章·祖制（建构轴双刃）注入：叙事体现既赖累世成宪之稳、亦困于祖制难改之僵
     try { if (window.TM && TM.Dianzhang && typeof TM.Dianzhang.promptInjection === 'function') { var _dzP = TM.Dianzhang.promptInjection(GM); if (_dzP) sysP += '\n' + _dzP; } } catch(_dzCtxE){}
 
+    _mark('stableRules');
     // ★ 三系统运行时状态（势力 lifePhase·党派 influence/officeCount·军队 mutinyRisk）
     if (TM && TM.EndTurnAIContext && typeof TM.EndTurnAIContext.appendPromptPolicyContext === 'function') {
       sysP = TM.EndTurnAIContext.appendPromptPolicyContext(sysP, {
@@ -2479,6 +2482,7 @@
       }
     } catch(_npcIE) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(_npcIE, 'sysP] NPC 决策注入失败') : console.warn('[sysP] NPC 决策注入失败', _npcIE); }
 
+    _mark('dynState');
     // ★ 官员任免铁则+纯文本输出铁则(防两兵尚/HTML 残片污染)
     sysP += '\n\n【★ 官员任免铁则·AI 必遵】';
     sysP += '\n  1. 推演中任何官员升迁/免职/任新职/夺职/调任·必须且只能通过 personnelChanges 数组输出·含 {name, change, fromPost, toPost}';
@@ -2492,6 +2496,7 @@
     sysP += '\n  · 遇到本提示中的参考字符串含 HTML·原样输出时必须剥除 HTML 只保留中文';
     sysP += '\n  · 不允许在叙事中使用 Markdown 链接 [text](url)';
 
+    _mark('stableIron');
     // ★ 御批回听·上回合未落实诏令注入·AI 必须补偿或明确拒绝
     try {
       if (typeof buildEdictEfficacyFollowUp === 'function') {
@@ -2508,6 +2513,7 @@
       }
     } catch(_arcIE) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(_arcIE, 'sysP] 情节弧注入失败') : console.warn('[sysP] 情节弧注入失败', _arcIE); }
 
+    _mark('dynArcs');
     _mark('base');
     // 注入·启动预演规划（aiPlanScenarioForInference 生成·轻量版·提升推演稳定性）
     if (GM._aiInferencePlan && GM._aiInferencePlan.generatedAt) {
@@ -3981,7 +3987,7 @@
     // 1.4: 幻觉防火墙——名称白名单注入
     // 明确列出当前存活角色和有效地名，要求AI只使用名单内名称
     // ============================================================
-    _mark('base');
+    _mark('roster');
     (function _hallucinationFirewall() {
       // 存活角色白名单
       var _aliveNames = (GM.chars || []).filter(function(c) { return c.alive !== false; }).map(function(c) { return c.name; });
@@ -4137,10 +4143,11 @@
         _dbg('[Prompt] sysP分段感知收束 → ' + sysP.length + '/' + _sysPMaxChars);
       }
       // 2026-08-10·省 token 优化：稳定段前置（前缀缓存友好）。
-      // base/worldPlan/socialRules/roster/tail 整局几乎不变 → 置前；每回合动态段（events/digest/context…）置后。
-      // 效果：整条 sysP 前缀字节级稳定 → DeepSeek/OpenAI 自动前缀缓存 + Anthropic cache_control 均能命中。
-      // 内容零增删·仅拼接顺序变化。
-      var _STABLE_FIRST = { base:1, worldPlan:1, socialRules:1, roster:1, tail:1 };
+      // 2026-08-10 二批：把 base 首段内的动态内容（回合号/在世名单/三系统状态/NPC预规划/御批回听/情节弧）
+      //   拆成 dynMid/dynState/dynArcs 置后；真稳定段（stableHead 史观+stableRules 硬约束+stableIron 任免铁则
+      //   +base 预演规划/势力矩阵+roster 名单+worldPlan+socialRules+tail）全部置前 → 前缀缓存覆盖最大化
+      //   （DeepSeek 按前缀单元全匹配计命中；前缀里任何一个字节变，其后续全部失配）。内容零增删·仅拼接顺序变化。
+      var _STABLE_FIRST = { stableHead:1, stableRules:1, stableIron:1, base:1, worldPlan:1, socialRules:1, roster:1, tail:1 };
       if (_segs.length > 1) {
         var _stableSegs = [], _dynSegs = [];
         for (var _rs = 0; _rs < _segs.length; _rs++) {

@@ -4,6 +4,10 @@
   var STORAGE_KEY = 'tm.homeUI';
   var DEFAULT_THEME = 'desk';
   var LOAD_TIMEOUT_MS = 12000;
+  // 2026-08-10·美术缺失自愈：v3 主题 art 文件（home-ui-{desk,map,gate}-v3-4k.webp）不在仓库也不在本机时，
+  // 主题会加载失败。这里记录本会话已确认缺失的主题（供一次性 toast 限流），经典主页（原版图标）稳定回退，
+  // 不再每次启动重复报错。看门狗保持 12s（smoke 契约：防止设置永久卡在装裱态）。
+  var _artMissing = {};
   var THEMES = {
     desk: {
       label: '御案待批',
@@ -240,7 +244,13 @@
       setRect(document.getElementById(PRIMARY_IDS[i]), conf.primary[i]);
     }
     var tools = document.querySelectorAll('.home-tools > button');
-    for (var j = 0; j < tools.length && j < conf.utilities.length; j++) setRect(tools[j], conf.utilities[j]);
+    // 2026-08-10·工具按钮多于主题美术绘制槽位（如新增「手记」）时：有槽位→定位；无槽位→仅主题真正生效时隐藏
+    // （美术上没有对应热区·叠放会盖住首钮）；经典/回退模式恢复 grid 显示全部
+    var _engaged = document.documentElement.getAttribute('data-tm-home-ui') === theme;
+    for (var j = 0; j < tools.length; j++) {
+      if (j < conf.utilities.length) setRect(tools[j], conf.utilities[j]);
+      else tools[j].style.display = _engaged ? 'none' : '';
+    }
     refreshRecent(theme);
     ensureVersion();
     syncSettingsSelection(theme);
@@ -298,13 +308,18 @@
       settled = true;
       clearWatchdog();
       pendingTheme = '';
+      _artMissing[theme] = true;
       if (!activeTheme) document.documentElement.removeAttribute('data-tm-home-ui');
       document.documentElement.removeAttribute('data-tm-home-ui-loading');
       document.documentElement.removeAttribute('data-tm-home-ui-pending');
       document.documentElement.setAttribute('data-tm-home-ui-error', theme);
       hideLoadingStatus();
       syncSettingsPending('');
-      if (typeof root.toast === 'function') root.toast('主页美术资源未就绪 · 已保留原主页');
+      // 2026-08-10·自愈：缺失美术不再每次启动 toast 打扰，仅本会话首次提示
+      if (!_artMissing._toasted) {
+        _artMissing._toasted = true;
+        if (typeof root.toast === 'function') root.toast('主页美术资源未就绪 · 已保留原主页');
+      }
     }
     function decodedSuccess() {
       if (decodeStarted || settled || serial !== loadSerial) return;
@@ -446,7 +461,7 @@
       html += '<button type="button" role="radio" class="tm-home-ui-choice' + (on ? ' active' : '') + (pending ? ' is-loading' : '') + '" data-home-ui-choice="' + key + '" aria-checked="' + (on ? 'true' : 'false') + '" aria-busy="' + (pending ? 'true' : 'false') + '" tabindex="' + (on ? '0' : '-1') + '" onclick="TM.HomeUI.set(\'' + key + '\',this)" onkeydown="return TM.HomeUI.onChoiceKey(event,this)">' +
         '<span class="tm-home-ui-choice-no">案 ' + (index + 1) + '</span>' +
         '<span class="tm-home-ui-choice-check" aria-hidden="true">✓</span>' +
-        '<img src="' + esc(theme.thumb || theme.asset) + '" alt="" aria-hidden="true" loading="lazy" decoding="async" draggable="false">' +
+        '<img src="' + esc(theme.thumb || theme.asset) + '" alt="" aria-hidden="true" loading="lazy" decoding="async" draggable="false" onerror="this.outerHTML=\'<span class=&quot;tm-home-ui-choice-miss&quot;>美术缺失</span>\'">' +
         '<span class="tm-home-ui-choice-copy"><b>' + esc(theme.label) + '</b><small>' + esc(theme.shortLabel + ' · ' + theme.note) + '</small></span>' +
         '<span class="tm-home-ui-choice-state">' + (pending ? '正在装裱…' : (on ? '当前使用' : '选用此案')) + '</span></button>';
     });
@@ -462,6 +477,8 @@
     pending: function () { return pendingTheme; },
     set: function (theme) {
       theme = validTheme(theme) ? theme : DEFAULT_THEME;
+      // 2026-08-10·自愈：不在此快速拒绝——404 探测瞬时失败，重试成本为零；
+      // 一次性 toast 已由 failure() 限流，设置卡缩略图缺失由 onerror 显示「美术缺失」。
       if (theme === activeTheme) {
         if (pendingTheme) cancelPendingTheme();
         syncSettingsSelection(theme);

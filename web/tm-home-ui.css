@@ -352,6 +352,19 @@ html[data-tm-home-ui] #launch > .home-foot { display: none; }
 }
 .tm-home-ui-intro { margin: -0.2rem 0 0.7rem; }
 .tm-home-ui-hint { margin-top: 0.65rem; }
+/* 2026-08-10·美术缺失占位：v3 主题 art 不在本机时，设置页选卡显示「美术缺失」而非裂图 */
+.tm-home-ui-choice-miss {
+  display: grid;
+  width: 100%;
+  min-height: 120px;
+  place-items: center;
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+  color: var(--txt-d);
+  font-size: 0.78rem;
+  letter-spacing: 0.18em;
+  background: var(--bg-2);
+}
 .tm-home-ui-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));

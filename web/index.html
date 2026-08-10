@@ -156,6 +156,7 @@
             <button type="button" onclick="window.openContentManager&&window.openContentManager();" title="管理在线更新与创意工坊内容">工坊</button>
             <button type="button" onclick="window._loadMapEditorJSON&&window._loadMapEditorJSON();" title="载入地图编辑器导出的自制舆图，开卷时自动装用">载图</button>
             <button type="button" onclick="if(typeof openHelp==='function'){openHelp('overview');}else{alert('帮助系统加载中，请稍候再试。');}" title="查看游戏帮助·含「如何配置 AI 密钥」">帮助</button>
+            <button type="button" onclick="if(window.openImperialNotes)openImperialNotes();" title="帝王手记：写给 AI 的战略备忘（恩怨/政策意图/远期计划）·每回合自动注入推演">手记</button>
             <button type="button" onclick="if(confirm('确定退出天命？未保存的进度将丢失。')){ if(window.tianming&&window.tianming.quitApp){ window.tianming.quitApp(); } else { window.close(); } }">退出</button>
           </div>
         </section>
