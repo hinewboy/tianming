@@ -61,7 +61,59 @@
     return out;
   }
 
-  var api = { resolve: resolve, placeGreedy: placeGreedy };
+  // 全局防碰撞布局(2026-08-11·跨省统一·多方向螺旋·治府名堆叠/跨省重合/直接隐藏)
+  // items: [{x,y,w,h,pr}] 屏幕坐标·按 pr 降序放置(高者先占)。pr 缺省=字号。
+  // opts: {pad, maxDist, step, constraint} constraint=fn(x,y,item)->bool(候选点是否可接受·如省内)
+  // 返回: 与 items 等长 [{x,y}]·找不到可接受点则退原位(宁重叠不隐藏)。
+  function layoutGreedy(items, opts){
+    opts = opts || {};
+    var pad = (opts.pad != null) ? opts.pad : 2;
+    var maxDist = (opts.maxDist != null) ? opts.maxDist : 120;
+    var step = (opts.step != null) ? opts.step : 7;
+    var constraint = opts.constraint || null;
+    var n = items.length;
+    var out = new Array(n);
+    var placed = [];
+    var order = [];
+    for (var i = 0; i < n; i++) order.push(i);
+    order.sort(function(a, b){ return (items[b].pr || items[b].w || 12) - (items[a].pr || items[a].w || 12); });
+    for (var oi = 0; oi < n; oi++) {
+      var idx = order[oi], it = items[idx];
+      var best = null;
+      for (var d = 0; d <= maxDist && !best; d += step) {
+        var dirs = ringDirs(d);
+        for (var di = 0; di < dirs.length; di++) {
+          var cx = it.x + dirs[di][0], cy = it.y + dirs[di][1];
+          if (constraint && !constraint(cx, cy, it)) continue;
+          if (!hitAny(cx, cy, it.w, it.h, placed, pad)) { best = { x: cx, y: cy }; break; }
+        }
+      }
+      if (!best) best = { x: it.x, y: it.y };
+      placed.push({ x: best.x, y: best.y, w: it.w, h: it.h });
+      out[idx] = best;
+    }
+    return out;
+  }
+
+  // 距离 d 的候选方向集(8 主向 + 8 斜向·含 0.7 斜缩比例)·d=0 只原位。
+  function ringDirs(d){
+    if (d <= 0) return [[0, 0]];
+    var q = Math.round(d * 0.7);
+    return [[d,0],[0,d],[-d,0],[0,-d],[d,d],[d,-d],[-d,d],[-d,-d],
+            [q,q],[q,-q],[-q,q],[-q,-q],[d,q],[-d,q],[q,d],[q,-d],[-d,-q],[d,-q]];
+  }
+
+  // 点(x,y) 宽 w 高 h 矩形是否与已放置矩形相交(含 pad)。
+  function hitAny(x, y, w, h, placed, pad){
+    var hw = w / 2 + pad, hh = h / 2 + pad;
+    for (var i = 0; i < placed.length; i++) {
+      var q = placed[i];
+      if (Math.abs(x - q.x) < (hw + q.w / 2) && Math.abs(y - q.y) < (hh + q.h / 2)) return true;
+    }
+    return false;
+  }
+
+  var api = { resolve: resolve, placeGreedy: placeGreedy, layoutGreedy: layoutGreedy, ringDirs: ringDirs, hitAny: hitAny };
   if (typeof window !== 'undefined') window.TMMapLabelCollide = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })();

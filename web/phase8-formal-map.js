@@ -1348,6 +1348,8 @@
     // 未匹配府回落网格矩形(tianqi-ming2 剧本含边镇卫所/天启新增府·CHGIS 万历版图未含)
     var PREFP = (typeof window !== 'undefined') ? (window.TM_MING_PREF_POLYGONS || null) : null;
     var out = '';
+    // 2026-08-11·跨省统一防碰撞：所有省的府名锚点收集到全局数组·布局后统一渲染(治跨省重合/堆叠)
+    var _globalLabels = [];
     (visibleRegions || []).forEach(function(r, ridx) {
       var cells = prefectureCells(r);
       if (!cells.length && !PREFP) return;
@@ -1369,56 +1371,40 @@
         });
       }
       out += '</g>';
-      // ② 府名标签层(clip 组外·不被省边界裁剪——2026-08-11·用户反馈府名被地图盖住一部分)
-      out += '<g class="tmf-pref-label-layer">';
-      // 2026-08-11·同省府名防碰撞：收集本省所有府名锚点·贪心排列(冲突者下移 16px·治府名挤在一起)
-      var _prefLabels = [];
-      if (PREFP) {
-        var _rprefs2 = (r.data && r.data.children && r.data.children.length) ? r.data.children : (r.prefectures || []);
-        _rprefs2.forEach(function(p) {
-          if (!p || p.level !== 'prefecture' || !p.name) return;
-          var poly = PREFP[p.name];
-          if (!poly || !poly.polygon || poly.polygon.length < 4) return;
-          var cc = (poly.label && poly.label.length === 2) ? { x: poly.label[0], y: poly.label[1] } : polygonCentroid(poly.polygon);
-          _prefLabels.push({ name: p.name, x: cc.x, y: cc.y });
-        });
-      }
+      // ② 府名标签：收集到全局数组·跨省统一防碰撞后再渲染(clip 组外·不被省边界裁剪)
+      var _rprefs2 = (r.data && r.data.children && r.data.children.length) ? r.data.children : (r.prefectures || []);
+      _rprefs2.forEach(function(p) {
+        if (!p || p.level !== 'prefecture' || !p.name) return;
+        var poly = PREFP && PREFP[p.name];
+        if (!poly || !poly.polygon || poly.polygon.length < 4) return;
+        var cc = (poly.label && poly.label.length === 2) ? { x: poly.label[0], y: poly.label[1] } : polygonCentroid(poly.polygon);
+        _globalLabels.push({ name: p.name, x: cc.x, y: cc.y, w: p.name.length * _fs * 1.05, h: _fs * 1.35, pr: polyArea(poly.polygon), rpts: r.points });
+      });
       cells.forEach(function(c) {
         if (PREFP && PREFP[c.name]) return;   // 已有真实边界·跳过
-        _prefLabels.push({ name: c.name, x: c.cx, y: c.cy });
+        _globalLabels.push({ name: c.name, x: c.cx, y: c.cy, w: c.name.length * _fs * 1.05, h: _fs * 1.35, pr: 60, rpts: r.points });
       });
-      // 2026-08-11·府名约束进省 polygon 内(治府名跑到海里)：label 在省 polygon 外(海面/邻省)则向省质心收拢
-      var _rptsForPull = r.points || [];
-      // 顺序：先防碰撞(下移散开) → 再约束进省(拉回·接受个别重叠)——防碰撞下移会把 label 移出省
-      // (harness 实测北直隶 6 府名出省)·约束在最后保证不跑出海面
-      // 贪心防碰撞：按 x 排序·与已放置冲突(x 距 < 26 且 y 距 < 15)则下移 16px 重试
-      _prefLabels.sort(function(a, b) { return a.x - b.x; });
-      var _placed = [];
-      for (var _pi = 0; _pi < _prefLabels.length; _pi++) {
-        var _L = _prefLabels[_pi];
-        var _tries = 0;
-        while (_tries < 8) {
-          var _hit = false;
-          for (var _pj = 0; _pj < _placed.length; _pj++) {
-            var _Q = _placed[_pj];
-            if (Math.abs(_Q.x - _L.x) < 26 && Math.abs(_Q.y - _L.y) < 15) { _hit = true; break; }
-          }
-          if (!_hit) break;
-          _L.y += 16; _tries++;
+    });
+    // ③ 跨省统一防碰撞布局(2026-08-11·治府名堆叠/跨省重合)：所有府名全局贪心·8方向螺旋试探·
+    // 约束 = 候选点在所属省内(防碰撞散开优先·找不到省内点允许小偏移出省·宁重叠不隐藏)
+    if (_globalLabels.length && window.TMMapLabelCollide) {
+      var _layout = window.TMMapLabelCollide.layoutGreedy(_globalLabels, {
+        pad: 2, maxDist: 90, step: 6,
+        constraint: function(x, y, it) {
+          if (pointInPolygon(x, y, it.rpts)) return true;
+          var _dx = x - it.x, _dy = y - it.y;
+          return (_dx * _dx + _dy * _dy) <= 34 * 34;   // 锚点本身在省外或小省放不下·允许小距离出省
         }
-        _placed.push({ x: _L.x, y: _L.y });
-      }
-      // 防碰撞后再统一约束进省 polygon（拉回·治跑海里）
-      for (var _pk = 0; _pk < _prefLabels.length; _pk++) {
-        pullPointIntoPolygon(_prefLabels[_pk], _rptsForPull);
-      }
-      for (var _pi2 = 0; _pi2 < _prefLabels.length; _pi2++) {
-        var _L2 = _prefLabels[_pi2];
-        out += '<g class="tmf-prefecture-label" data-pref="' + attr(_L2.name) + '" transform="translate(' + _L2.x.toFixed(1) + ' ' + _L2.y.toFixed(1) + ')">'
-          + '<text x="0" y="3" style="font-size:' + _fs + 'px;fill:#f2dfad;stroke:rgba(18,12,5,.85);stroke-width:0.18;paint-order:stroke;text-anchor:middle">' + esc(_L2.name) + '</text></g>';
+      });
+      out += '<g class="tmf-pref-label-layer">';
+      for (var _li = 0; _li < _globalLabels.length; _li++) {
+        var _GL = _globalLabels[_li];
+        if (!_layout[_li]) continue;
+        out += '<g class="tmf-prefecture-label" data-pref="' + attr(_GL.name) + '" transform="translate(' + _layout[_li].x.toFixed(1) + ' ' + _layout[_li].y.toFixed(1) + ')">'
+          + '<text x="0" y="3" style="font-size:' + _fs + 'px;fill:#f2dfad;stroke:rgba(18,12,5,.85);stroke-width:0.18;paint-order:stroke;text-anchor:middle">' + esc(_GL.name) + '</text></g>';
       }
       out += '</g>';
-    });
+    }
     return out;
   }
   // 2026-08-11·polygon path 生成 + 质心（真实府州边界）
@@ -1432,6 +1418,12 @@
     var x = 0, y = 0;
     for (var i = 0; i < poly.length; i++) { x += poly[i][0]; y += poly[i][1]; }
     return { x: x / poly.length, y: y / poly.length };
+  }
+  // 2026-08-11·polygon 面积(鞋带公式)·府名防碰撞优先级用(大府先占位)
+  function polyArea(poly) {
+    var n = poly.length, s = 0;
+    for (var i = 0, j = n - 1; i < n; j = i++) s += (poly[j][0] + poly[i][0]) * (poly[j][1] - poly[i][1]);
+    return Math.abs(s / 2);
   }
   // 2026-08-11·点是否在多边形内(ray casting·轻量)·府名约束到省 polygon 内(治府名跑到海里)
   function pointInPolygon(x, y, pts) {
