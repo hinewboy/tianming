@@ -1179,14 +1179,40 @@
   function zoomMap(factor){
     var v = state.mapView || { scale: 1, tx: 0, ty: 0 };
     // 2026-08-10·上限 4.2→12：府州档 band 10 需要(用户实测 4.2 钳制导致"不能 10 倍放大")
-    v.scale = Math.max(0.72, Math.min(12, Number(v.scale || 1) * (factor || 1)));
-    state.mapView = v;
-    applyMapTransform();
+    var s2 = Math.max(0.72, Math.min(12, Number(v.scale || 1) * (factor || 1)));
+    if (Math.abs(s2 - (Number(v.scale) || 1)) < 0.001) return;
+    // 2026-08-11·平滑缩放：保持视野中心·rAF 插值(治府州 10 倍跳变不平滑)
+    var CW = (Number(state._mapVBW) || 1200) / 2, CH = (Number(state._mapVBH) || 720) / 2;
+    var cx = (CW - (Number(v.tx) || 0)) / (Number(v.scale) || 1);
+    var cy = (CH - (Number(v.ty) || 0)) / (Number(v.scale) || 1);
+    animateMapView(s2, CW - cx * s2, CH - cy * s2, 150);
   }
 
   function resetMapView(){
-    state.mapView = { scale: 1, tx: 0, ty: 0 };
-    applyMapTransform();
+    // 2026-08-11·复位也走平滑动画
+    animateMapView(1, 0, 0, 220);
+  }
+
+  // 2026-08-11·平滑缩放动画：切档/联动抬升/滚轮缩放走 rAF 插值(~150-220ms ease-out cubic)·
+  // 治府州档 10 倍跳变突兀(用户实测不平滑·对比天下/省道档)·期间新动画自动取消旧动画
+  var _mapAnimRaf = 0, _mapAnimFrom = null, _mapAnimTo = null, _mapAnimT0 = 0;
+  function animateMapView(toScale, toTx, toTy, durMs){
+    var v = state.mapView || { scale: 1, tx: 0, ty: 0 };
+    _mapAnimFrom = { scale: Number(v.scale) || 1, tx: Number(v.tx) || 0, ty: Number(v.ty) || 0 };
+    _mapAnimTo = { scale: Number(toScale) || 1, tx: Number(toTx) || 0, ty: Number(toTy) || 0 };
+    _mapAnimT0 = Date.now();
+    durMs = durMs || 180;
+    if (_mapAnimRaf) cancelAnimationFrame(_mapAnimRaf);
+    (function step(){
+      var t = Math.min(1, (Date.now() - _mapAnimT0) / durMs);
+      var e = 1 - Math.pow(1 - t, 3);   // ease-out cubic
+      v.scale = _mapAnimFrom.scale + (_mapAnimTo.scale - _mapAnimFrom.scale) * e;
+      v.tx = _mapAnimFrom.tx + (_mapAnimTo.tx - _mapAnimFrom.tx) * e;
+      v.ty = _mapAnimFrom.ty + (_mapAnimTo.ty - _mapAnimFrom.ty) * e;
+      applyMapTransform();
+      if (t < 1) _mapAnimRaf = (window.requestAnimationFrame || function(cb){ return setTimeout(cb, 16); })(step);
+      else { _mapAnimRaf = 0; _mapAnimFrom = _mapAnimTo = null; }
+    })();
   }
 
   function updateMapChrome(){
@@ -1303,13 +1329,19 @@
   }
   function prefectureLayer(map, visibleRegions) {
     if (!map || state.mapScale !== 'prefecture') return '';
-    // 2026-08-10·府名字号反比 scale(参考省级标签 LOD)：SVG text 随 transform 缩放·
+    // 2026-08-11·府名字号反比 scale(参考省级标签 LOD)：SVG text 随 transform 缩放·
     // 固定字号在 10 倍下 = 100px+ 涂满——字号 = 屏显 11px / scale·保持屏显恒定
     var _fs = Math.max(1.0, Math.round(11 / (Number(state.mapView && state.mapView.scale) || 1) * 100) / 100);
+    // 2026-08-11·府块线条同样反比 scale：stroke 随 transform 缩放(0.8px×10倍=8px粗线·用户"线条太大"反馈)→
+    // 屏显恒定 ~0.8px 细线
+    var _sw = Math.max(0.3, Math.round(0.8 / (Number(state.mapView && state.mapView.scale) || 1) * 100) / 100);
+    // 2026-08-11·真实府州边界(CHGIS V6·tianqi-prefecture-polygons.js)：匹配到的府画真实 polygon·
+    // 未匹配府回落网格矩形(tianqi-ming2 剧本含边镇卫所/天启新增府·CHGIS 万历版图未含)
+    var PREFP = (typeof window !== 'undefined') ? (window.TM_MING_PREF_POLYGONS || null) : null;
     var out = '';
     (visibleRegions || []).forEach(function(r, ridx) {
       var cells = prefectureCells(r);
-      if (!cells.length) return;
+      if (!cells.length && !PREFP) return;
       var d = pathForRegion(r);
       if (!d) return;
       // 2026-08-10·cid 唯一化：中文省名 replace 后为空 → 43 省共用空 id → clipPath 引用错乱(黑块根因)
@@ -1317,16 +1349,43 @@
       var cid = 'tmf-pref-clip-' + _safe;
       out += '<clipPath id="' + cid + '"><path d="' + attr(d) + '"></path></clipPath>';
       out += '<g class="tmf-prefecture-block" clip-path="url(#' + cid + ')">';
+      // ① 真实 polygon 府（CHGIS 匹配到）
+      if (PREFP) {
+        var _rprefs = (r.data && r.data.children && r.data.children.length) ? r.data.children : (r.prefectures || []);
+        _rprefs.forEach(function(p) {
+          if (!p || p.level !== 'prefecture' || !p.name) return;
+          var poly = PREFP[p.name];
+          if (!poly || !poly.polygon || poly.polygon.length < 4) return;
+          out += '<path class="tmf-pref-cell tmf-pref-real" style="fill:rgba(178,142,74,.07);stroke:rgba(214,188,116,.30);stroke-width:' + _sw + '" data-pref="' + attr(p.name) + '" data-pref-id="' + attr(p.id || '') + '" data-province="' + attr(r.name || '') + '" d="' + polygonPathFrom(poly.polygon) + '"></path>';
+          var cc = polygonCentroid(poly.polygon);
+          out += '<g class="tmf-prefecture-label" transform="translate(' + cc.x.toFixed(1) + ' ' + cc.y.toFixed(1) + ')">'
+            + '<text x="0" y="3" style="font-size:' + _fs + 'px;text-anchor:middle">' + esc(p.name) + '</text></g>';
+        });
+      }
+      // ② 网格回落（未匹配府）
       cells.forEach(function(c) {
-        // inline fill 保险：防 CSS(带 body.tm-phase8-formal 前缀)未匹配时 path 默认黑填充
-        out += '<path class="tmf-pref-cell" style="fill:rgba(178,142,74,.12);stroke:rgba(214,188,116,.55);stroke-width:1.2" data-pref="' + attr(c.name) + '" data-pref-id="' + attr(c.prefId || '') + '" data-province="' + attr(r.name || '') + '" d="M' + c.x0.toFixed(1) + ' ' + c.y0.toFixed(1) + ' L' + c.x1.toFixed(1) + ' ' + c.y0.toFixed(1) + ' L' + c.x1.toFixed(1) + ' ' + c.y1.toFixed(1) + ' L' + c.x0.toFixed(1) + ' ' + c.y1.toFixed(1) + ' Z"></path>';
+        if (PREFP && PREFP[c.name]) return;   // 已有真实边界·跳过网格
+        // inline fill 保险：防 CSS(带 body.tm-phase8-formal 前缀)未匹配时 path 默认黑填充·
+        // 2026-08-11·弱化府块纹理：fill .12→.07(隐约地块感)·stroke 更淡更细(放大后矩形网格不扎眼)
+        out += '<path class="tmf-pref-cell" style="fill:rgba(178,142,74,.07);stroke:rgba(214,188,116,.30);stroke-width:' + _sw + '" data-pref="' + attr(c.name) + '" data-pref-id="' + attr(c.prefId || '') + '" data-province="' + attr(r.name || '') + '" d="M' + c.x0.toFixed(1) + ' ' + c.y0.toFixed(1) + ' L' + c.x1.toFixed(1) + ' ' + c.y0.toFixed(1) + ' L' + c.x1.toFixed(1) + ' ' + c.y1.toFixed(1) + ' L' + c.x0.toFixed(1) + ' ' + c.y1.toFixed(1) + ' Z"></path>';
         out += '<g class="tmf-prefecture-label" transform="translate(' + c.cx.toFixed(1) + ' ' + c.cy.toFixed(1) + ')">'
-          + '<circle r="2.2" class="tmf-pref-dot"></circle>'
-          + '<text x="5" y="3" style="font-size:' + _fs + 'px">' + esc(c.name) + '</text></g>';
+          + '<text x="0" y="3" style="font-size:' + _fs + 'px;text-anchor:middle">' + esc(c.name) + '</text></g>';
       });
       out += '</g>';
     });
     return out;
+  }
+  // 2026-08-11·polygon path 生成 + 质心（真实府州边界）
+  function polygonPathFrom(poly) {
+    if (!poly || poly.length < 2) return '';
+    var d = 'M' + poly[0][0] + ' ' + poly[0][1];
+    for (var i = 1; i < poly.length; i++) d += ' L' + poly[i][0] + ' ' + poly[i][1];
+    return d + ' Z';
+  }
+  function polygonCentroid(poly) {
+    var x = 0, y = 0;
+    for (var i = 0; i < poly.length; i++) { x += poly[i][0]; y += poly[i][1]; }
+    return { x: x / poly.length, y: y / poly.length };
   }
   // 2026-08-10·防御补数据：运行时 region.data.children 缺失(旧存档/早期版本从 game-map.json 绑定)时·
   // 渲染前从剧本 bundle(mapData/map)按省 id/name 匹配补回府州数据(运行时增强·不改存档)
