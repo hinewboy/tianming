@@ -1254,31 +1254,55 @@
     }
     return filtered;
   }
-  // 2026-08-10·府州标签层：府州档时在各省 polygon 内按环形分布标注府名
-  // 数据源：剧本 map 的 region.prefectures（359 府·含 name/level/terrain 等富属性）
-  function prefectureLabelLayer(map, visibleRegions) {
+  // 2026-08-10·府州地块层：府州档时把每省按府数网格切分成"府州块"(矩形单元)·
+  // 用 SVG clipPath 裁剪到省 polygon 边界(零几何计算·自动贴合省形状)·仿省级地块样式(边界+填充+府名)
+  function prefectureCells(region) {
+    var prefs = null;
+    if (region.prefectures && region.prefectures.length) prefs = region.prefectures;
+    else if (region.data && region.data.children && region.data.children.length) prefs = region.data.children;
+    if (!prefs) return [];
+    prefs = prefs.filter(function(p) { return p && p.name && p.level === 'prefecture'; });
+    if (!prefs.length) return [];
+    var pts = region.points || [];
+    if (pts.length < 3) return [];
+    var minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+    pts.forEach(function(pt) {
+      var x = Array.isArray(pt) ? pt[0] : pt.x, y = Array.isArray(pt) ? pt[1] : pt.y;
+      if (x < minX) minX = x; if (x > maxX) maxX = x;
+      if (y < minY) minY = y; if (y > maxY) maxY = y;
+    });
+    var n = prefs.length;
+    var bw = Math.max(1, maxX - minX), bh = Math.max(1, maxY - minY);
+    var cols = Math.max(1, Math.round(Math.sqrt(n * bw / Math.max(1, bh))));
+    var rows = Math.max(1, Math.ceil(n / cols));
+    var cw = bw / cols, ch = bh / rows;
+    var out = [];
+    prefs.forEach(function(p, i) {
+      var col = i % cols, row = Math.floor(i / cols);
+      var x0 = minX + col * cw + cw * 0.13, x1 = minX + (col + 1) * cw - cw * 0.13;
+      var y0 = minY + row * ch + ch * 0.13, y1 = minY + (row + 1) * ch - ch * 0.13;
+      out.push({ name: p.name, x0: x0, y0: y0, x1: x1, y1: y1, cx: (x0 + x1) / 2, cy: (y0 + y1) / 2 });
+    });
+    return out;
+  }
+  function prefectureLayer(map, visibleRegions) {
     if (!map || state.mapScale !== 'prefecture') return '';
     var out = '';
     (visibleRegions || []).forEach(function(r) {
-      var prefs = null;
-      if (r.prefectures && r.prefectures.length) prefs = r.prefectures;
-      else if (r.data && r.data.children && r.data.children.length) prefs = r.data.children;
-      if (!prefs) return;
-      prefs = prefs.filter(function(p) { return p && p.name && p.level === 'prefecture'; });
-      if (!prefs.length) return;
-      var c = r.centroid || actualCenter(r);
-      if (!c) return;
-      var n = prefs.length;
-      var R = Math.max(30, Math.min(95, 22 + n * 3.6));
-      prefs.forEach(function(p, i) {
-        var ang = (i / n) * 2 * Math.PI - Math.PI / 2;
-        var x = c.x + Math.cos(ang) * R;
-        var y = c.y + Math.sin(ang) * R * 0.82;
-        out += '<g class="tmf-prefecture-label" data-pref="' + attr(p.name) + '" transform="translate(' + x.toFixed(1) + ' ' + y.toFixed(1) + ')">'
-          + '<circle r="2.6" class="tmf-pref-dot"></circle>'
-          + '<text x="6" y="3">' + esc(p.name) + '</text>'
-          + '</g>';
+      var cells = prefectureCells(r);
+      if (!cells.length) return;
+      var d = pathForRegion(r);
+      if (!d) return;
+      var cid = 'tmf-pref-clip-' + String(r.id || r.name || 'x').replace(/[^A-Za-z0-9_-]/g, '');
+      out += '<clipPath id="' + cid + '"><path d="' + attr(d) + '"></path></clipPath>';
+      out += '<g class="tmf-prefecture-block" clip-path="url(#' + cid + ')">';
+      cells.forEach(function(c) {
+        out += '<path class="tmf-pref-cell" data-pref="' + attr(c.name) + '" d="M' + c.x0.toFixed(1) + ' ' + c.y0.toFixed(1) + ' L' + c.x1.toFixed(1) + ' ' + c.y0.toFixed(1) + ' L' + c.x1.toFixed(1) + ' ' + c.y1.toFixed(1) + ' L' + c.x0.toFixed(1) + ' ' + c.y1.toFixed(1) + ' Z"></path>';
+        out += '<g class="tmf-prefecture-label" transform="translate(' + c.cx.toFixed(1) + ' ' + c.cy.toFixed(1) + ')">'
+          + '<circle r="2.2" class="tmf-pref-dot"></circle>'
+          + '<text x="5" y="3">' + esc(c.name) + '</text></g>';
       });
+      out += '</g>';
     });
     return out;
   }
@@ -1410,7 +1434,7 @@
           '<g class="tmf-region-washes">' + regionWashes + '</g>' +
           '<g class="tmf-region-halos">' + regionHalos + '</g>' +
           '<g class="tmf-region-layer ming-admin-layer">' + regionPaths + '</g>' +
-          '<g class="tmf-prefecture-layer">' + prefectureLabelLayer(map, visibleRegions) + '</g>' +
+          '<g class="tmf-prefecture-layer">' + prefectureLayer(map, visibleRegions) + '</g>' +
           '<g class="tmf-faction-label-layer">' + factionLabelLayer(map) + '</g>' +
           '<g class="tmf-sentinel-layer">' + sentinelLayer(map) + '</g>' +
           '<rect class="tmf-map-grain" x="0" y="0" width="' + width + '" height="' + height + '"></rect>' +
