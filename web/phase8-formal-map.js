@@ -1157,6 +1157,10 @@
     var band = scaleToBand(sc);
     if (band !== state.mapScale){
       state.mapScale = band;
+      // 2026-08-10·联动切档后把 scale 抬升到该层 band：用户手动放大跨阈(如 2.3→府州)时若只切档不放大·
+      // 府州档 359 府名在 ~2.5 倍下涂满全屏(用户实测反馈)——抬到 band(府州 10)府名才疏散可交互
+      var _b2 = bandToScale(band);
+      if (state.mapView && _b2 > sc) state.mapView.scale = _b2;
       updateMapChrome();
       renderFormalMapSoon();  // 异步重渲(画新层级·避免 applyMapTransform 内同步递归)
     }
@@ -1289,6 +1293,9 @@
   }
   function prefectureLayer(map, visibleRegions) {
     if (!map || state.mapScale !== 'prefecture') return '';
+    // 2026-08-10·府名字号反比 scale(参考省级标签 LOD)：SVG text 随 transform 缩放·
+    // 固定字号在 10 倍下 = 100px+ 涂满——字号 = 屏显 11px / scale·保持屏显恒定
+    var _fs = Math.max(1.0, Math.round(11 / (Number(state.mapView && state.mapView.scale) || 1) * 100) / 100);
     var out = '';
     (visibleRegions || []).forEach(function(r) {
       var cells = prefectureCells(r);
@@ -1302,7 +1309,7 @@
         out += '<path class="tmf-pref-cell" data-pref="' + attr(c.name) + '" data-pref-id="' + attr(c.prefId || '') + '" data-province="' + attr(r.name || '') + '" d="M' + c.x0.toFixed(1) + ' ' + c.y0.toFixed(1) + ' L' + c.x1.toFixed(1) + ' ' + c.y0.toFixed(1) + ' L' + c.x1.toFixed(1) + ' ' + c.y1.toFixed(1) + ' L' + c.x0.toFixed(1) + ' ' + c.y1.toFixed(1) + ' Z"></path>';
         out += '<g class="tmf-prefecture-label" transform="translate(' + c.cx.toFixed(1) + ' ' + c.cy.toFixed(1) + ')">'
           + '<circle r="2.2" class="tmf-pref-dot"></circle>'
-          + '<text x="5" y="3">' + esc(c.name) + '</text></g>';
+          + '<text x="5" y="3" style="font-size:' + _fs + 'px">' + esc(c.name) + '</text></g>';
       });
       out += '</g>';
     });
