@@ -1280,6 +1280,15 @@ function _renderOfficeTreeSVG(container) {
       var lbl = document.getElementById('og-zoom-label');
       if (lbl) lbl.textContent = Math.round(scale*100) + '%';
     }
+    // 2026-08-10·触屏手势 rAF 节流（原 onGesture 每帧直写 transform·120Hz touchmove 卡顿不跟手）
+    var _applyRaf = 0;
+    function _scheduleApply() {
+      if (_applyRaf) return;
+      _applyRaf = (window.requestAnimationFrame || function(cb){ return setTimeout(cb, 16); })(function() {
+        _applyRaf = 0;
+        applyT();
+      });
+    }
     autoFit(); applyT();
 
     // 暴露给 onclick 全局按钮使用
@@ -1330,7 +1339,7 @@ function _renderOfficeTreeSVG(container) {
             oy = my2 - (my2 - oy) * (ns / scale);
             scale = ns;
           }
-          applyT();
+          _scheduleApply(); // 2026-08-10·rAF 节流（touchend 后一帧内自然 flush）
         }
       });
     }

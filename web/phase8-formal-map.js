@@ -1774,9 +1774,12 @@
             state.mapView.ty = ay - (ay - (state.mapView.ty || 0)) * (next / old);
             state.mapView.scale = next;
           }
-          applyMapTransform();
+          // 2026-08-10·触屏手势改 rAF 节流（原 applyMapTransform 直写：120Hz touchmove 每帧多次
+          //   setAttribute+跨阈值检查+标签LOD → 卡顿不跟手；与 pointermove 拖拽同款调度）
+          scheduleMapTransform();
         },
         onEnd: function(g){
+          applyMapTransform(); // flush 最终位置（rAF 节流下最后一帧可能尚未应用）
           if (g && g.moved) { state.dragSuppressClick = true; setTimeout(function(){ state.dragSuppressClick = false; }, 60); }
         }
       });

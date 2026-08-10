@@ -83,6 +83,25 @@
   var listeners = [];
   var activeBeats = BEATS;   // 当前生效拍表(core-start 时按 agentModeOn 切换)
 
+  // 2026-08-10·进度条感知优化：拍间隙超过 8s(卡在长 AI 调用)后，ceiling 每 2s +0.5% 缓慢放开，
+  // 进度条不再硬停在拍界——用户看到"仍在工作"而非"卡死"。新拍到来即重置回真实拍界。
+  // 链式 setTimeout（非 setInterval）：clearTimeout 可断链，杜绝残留 timer 拖住进程（smoke 环境实测）。
+  var _idleTimer = null;
+  var _idleCeil = 95;
+  function _scheduleIdleBump(ceil) {
+    _idleCeil = ceil;
+    _clearIdleBump();
+    _idleTimer = setTimeout(function _tick() {
+      _idleCeil = Math.min(_idleCeil + 0.5, 97);
+      if (typeof window.setLoadingCrawlCeil === 'function') window.setLoadingCrawlCeil(_idleCeil);
+      _idleTimer = setTimeout(_tick, 2000);
+    }, 8000);
+  }
+  function _clearIdleBump() {
+    if (_idleTimer) { clearTimeout(_idleTimer); _idleTimer = null; }
+    if (typeof window.setLoadingCrawlCeil === 'function') window.setLoadingCrawlCeil(95);
+  }
+
   function matchBeat(msg) {
     var label = String(msg == null ? '' : msg);
     if (!label) return null;
@@ -127,6 +146,7 @@
         m = matchBeat(msg);
         // 上回合若异常未走 hideLoading，钳制残值会卡住新回合——开闸时清零
         if (typeof window._loadingMaxPct === 'number') window._loadingMaxPct = 0;
+        _clearIdleBump();   // 2026-08-10·新回合开闸即清上一回合残留 idle 蠕动
         emit('start', { beats: activeBeats });
       }
 
@@ -142,6 +162,7 @@
           window.setLoadingCrawlCeil(beat.stream ? (beat.bandMax || ceilingFor(beatIdx)) : ceilingFor(beatIdx));
         }
         emit('beat', { index: beatIdx, beat: beat, label: String(msg), pct: shown, total: activeBeats.length });
+        _scheduleIdleBump(ceilingFor(beatIdx));   // 2026-08-10·拍间隙 idle 蠕动
         return origShow(msg, shown);
       }
 
@@ -169,6 +190,7 @@
         if (atEnd || !busy) {
           active = false;
           beatIdx = -1;
+          _clearIdleBump();   // 2026-08-10·落幕/中止时清除 idle 蠕动
           emit(atEnd ? 'done' : 'abort', {});
         } else {
           emit('pause', {});

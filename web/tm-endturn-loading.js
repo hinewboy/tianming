@@ -547,9 +547,14 @@
   function startAmbient() {
     window.clearInterval(ambientTimer);
     if (reduceMotion) return;
-    // 2026-08-10·手机降载：小屏(≤720px)关闭场景轮换——340KB jpg × 10.5s 轮换 + 交叉淡化
-    // 在低端机又卡又闪，且手机过回合一般即竖屏等待；桌面保留轮换氛围。
-    if (window.matchMedia && window.matchMedia('(max-width: 720px)').matches) return;
+    // 2026-08-10·手机降载/防闪：触摸设备(pointer:coarse)一律关闭场景轮换——
+    //   横屏手机 window 宽度 >720px 会漏过旧的小屏判断；340KB jpg × 10.5s 轮换 + 交叉淡化
+    //   在低端机又卡又闪。桌面/触控板(pointer:fine)保留轮换氛围。
+    try {
+      var _coarse = window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
+      var _narrow = window.matchMedia && window.matchMedia('(max-width: 720px)').matches;
+      if (_coarse || _narrow) return;
+    } catch (_e) { return; }
     ambientTimer = window.setInterval(function() {
       if (document.hidden || swapping) return;
       setScene(nextSceneIndex());

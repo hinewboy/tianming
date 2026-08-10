@@ -95,4 +95,6 @@ const AM = globalThis.TM.Endturn.AgentMode;
   assert(/start\(payload\)/.test(loadSrc.slice(loadSrc.indexOf("type === 'start'"))), '⑥ 事件 start 传 payload');
 
   console.log('[smoke-agent-mode-s7] pass assertions=' + passed.value);
+  // 2026-08-10·require 链(agent 工具)会创建 keep-alive Socket 拖住 node 事件循环不退出(实测 5min 才被 runner 超时砍)→断言完成即强制退出
+  process.exit(0);
 })().catch(function (e) { console.error(e); process.exit(1); });

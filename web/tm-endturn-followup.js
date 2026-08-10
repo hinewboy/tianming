@@ -444,7 +444,7 @@
         // sc15n 接管·跳 sc15 旧路径
         return;
       }
-      await _runSubcall('sc15', 'NPC深度推演', 'standard', async function() {
+      var _sc15P = _runSubcall('sc15', 'NPC深度推演', 'standard', async function() { // 2026-08-10·省时: 与 Branch B 并行(原串行致 68.9 长卡)
       showLoading("NPC\u5168\u9762\u63A8\u6F14",60);
       try {
         // \u2605 \u4E16\u754C\u72B6\u6001\u5FEB\u7167\u6CE8\u5165\uFF08sc15 \u91CD\u70B9\uFF1A\u9632\u6B7B\u8005\u590D\u6D3B\u00B7\u63D0\u793A\u8FDB\u884C\u4E2D\u8BCF\u4EE4\u00B7\u5173\u7CFB\u7A81\u53D8\u00B7\u5DF2\u786E\u7ACB\u4E8B\u5B9E\uFF09
@@ -473,9 +473,21 @@
         if (p1 && p1.faction_events && p1.faction_events.length > 0) {
           tp15 += '\u52BF\u529B\u4E8B\u4EF6\uFF1A' + p1.faction_events.map(function(fe){return (fe.actor||'')+fe.action;}).join('\uFF1B') + '\n';
         }
-        // 全部存活角色完整状态（不限制数量）
-        tp15 += '\n\u5168\u90E8\u5B58\u6D3B\u89D2\u8272\u5F53\u524D\u72B6\u6001\uFF1A\n';
-        (GM.chars || []).filter(function(c) { return c.alive !== false; }).forEach(function(c) {
+        // ★2026-08-10·省 token：全量角色(100+)每回合全列≈15K tokens——只列关键 top 50（玩家/后宫/朝官/首领优先），其余一行汇总
+        var _aliveChars15 = (GM.chars || []).filter(function(c) { return c.alive !== false; });
+        _aliveChars15.sort(function(a, b) {
+          function _rk(c) {
+            if (c.isPlayer) return 0;
+            if (typeof _tmIsPlayerConsort === 'function' ? _tmIsPlayerConsort(c) : c.spouse === true) return 1;
+            if (c.officialTitle && c.officialTitle !== '无') return 2;
+            if (c.faction && c.faction === (GM.playerFaction || P.playerInfo && P.playerInfo.factionName)) return 3;
+            return 4;
+          }
+          return _rk(a) - _rk(b) || (b.loyalty || 0) - (a.loyalty || 0);
+        });
+        var _list15 = _aliveChars15.slice(0, 50);
+        tp15 += '\n\u5168\u90E8\u5B58\u6D3B\u89D2\u8272\u5F53\u524D\u72B6\u6001\uFF08\u5173\u952E' + _list15.length + '\u4EBA\uFF09\uFF1A\n';
+        _list15.forEach(function(c) {
           var parts = [c.name];
           if (c.title) parts.push(c.title);
           if (c.faction) parts.push('\u52BF:' + c.faction);
@@ -500,6 +512,7 @@
           if (c.isPlayer) parts.push('\u2605\u73A9\u5BB6');
           tp15 += '  ' + parts.join(' ') + '\n';
         });
+        if (_aliveChars15.length > 50) tp15 += '  \u2026\u53E6\u6709 ' + (_aliveChars15.length - 50) + ' \u540D\u5176\u4F59\u89D2\u8272\uFF08\u7565\u00B7\u5982\u4E0E\u63A8\u6F14\u76F8\u5173\u8BF7\u6309\u9700\u63D0\u53CA\uFF09\n';
         // 加入显著矛盾（NPC行为应受矛盾驱动）
         if (P.playerInfo && P.playerInfo.coreContradictions && P.playerInfo.coreContradictions.length > 0) {
           tp15 += '\n\u3010\u663E\u8457\u77DB\u76FE\u2014\u2014NPC\u884C\u4E3A\u5E94\u53D7\u6B64\u9A71\u52A8\u3011\n';
@@ -802,10 +815,13 @@
         var _playerFacNames16 = _tmResolvePlayerFactionNamesForAi(GM, P);
         var tp16 = '\u57FA\u4E8E\u672C\u56DE\u5408\u5C40\u52BF\uFF0C\u751F\u6210\u975E\u73A9\u5BB6\u52BF\u529B\u7684\u6218\u7565\u65B9\u5411\u4E0E\u7CBE\u7EC6\u5316\u63A8\u6F14\u4F18\u5148\u7EA7\uFF1A\n';
         tp16 += '\u65F6\u653F\u8BB0\uFF1A' + (shizhengji||'').substring(0,500) + '\n';
-        (GM.facs||[]).forEach(function(f) {
-          if (_tmIsPlayerFactionForAi(f, _playerFacNames16)) return;
+        // ★2026-08-10·省 token：非玩家势力全列→只列 strength top 12，其余一行汇总
+        var _npf16 = (GM.facs||[]).filter(function(f) { return f && !_tmIsPlayerFactionForAi(f, _playerFacNames16); });
+        _npf16.sort(function(a,b){ return (b.strength||0)-(a.strength||0); });
+        _npf16.slice(0,12).forEach(function(f) {
           tp16 += f.name + ' \u5B9E\u529B' + (f.strength||50) + (f.leader?' \u9996\u9886:'+f.leader:'') + (f.goal?' \u76EE\u6807:'+f.goal:'') + (f.attitude?' \u6001\u5EA6:'+f.attitude:'') + '\n';
         });
+        if (_npf16.length > 12) tp16 += '\u53E6\u6709 ' + (_npf16.length-12) + ' \u4E2A\u4E2D\u5C0F\u52BF\u529B\uFF08\u7565\u00B7\u4EC5\u5F53\u4E0E\u672C\u56DE\u5408\u4E8B\u4EF6\u76F8\u5173\u65F6\u63D0\u53CA\uFF09\n';
         if (_playerFacNames16.length) {
           tp16 += '\n【玩家势力控制边界】' + _playerFacNames16.join('、') + '由玩家亲自控制；玩家势力不得作为行动发起方，不要为它生成 faction_actions，也不要以它作为 diplomatic_shifts.from。NPC 可以把玩家势力作为 target/to。\n';
         }
@@ -820,7 +836,7 @@
         } catch(_fai16Err) { try { _dbg('[sc16 faction-ai bridge] fail:', _fai16Err); } catch(_){} }
         try {
           var _adminHierarchy16 = (typeof TM !== 'undefined' && TM.FactionNpcLlmDecision && typeof TM.FactionNpcLlmDecision.buildFactionAdminSummaryForSc16 === 'function')
-            ? TM.FactionNpcLlmDecision.buildFactionAdminSummaryForSc16({ maxFactions: 16, maxDivisions: 4, maxChars: 8000 })
+            ? TM.FactionNpcLlmDecision.buildFactionAdminSummaryForSc16({ maxFactions: 12, maxDivisions: 3, maxChars: 5000 }) // 2026-08-10·省 token: 8000→5000 字符
             : '';
           if (_adminHierarchy16) {
             tp16 += '\n' + _adminHierarchy16 + '\n';
@@ -1233,6 +1249,9 @@
       } catch(e18) { _dbg('[Military] fail:', e18); throw e18; }
       }); } // end Sub-call 1.8 _runSubcall
       ], 3);
+      // 2026-08-10·省时: sc15(NPC深度) 与 Branch B(势力/经济/军事·并发3) 并行执行——
+      //   原串行(sc15 20-60s + batch 30-60s)是 68.9 进度条长时间卡住的根因；并行后 = max(sc15, batch)
+      await Promise.all([_sc15P, _branchB]);
 
       // --- SC_CONSISTENCY_AUDIT: 深化数据一致性审核（方向7扩展·S3） ---
       // 扫描 SC16/17/18 彼此的输出是否冲突·auto-patch 或 rerun
