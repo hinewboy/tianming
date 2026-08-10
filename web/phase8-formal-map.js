@@ -1307,6 +1307,37 @@
     });
     return out;
   }
+  // 2026-08-10·防御补数据：运行时 region.data.children 缺失(旧存档/早期版本从 game-map.json 绑定)时·
+  // 渲染前从剧本 bundle(mapData/map)按省 id/name 匹配补回府州数据(运行时增强·不改存档)
+  function ensurePrefectureData(map){
+    if (!map || !Array.isArray(map.regions) || !map.regions.length) return;
+    var need = map.regions.some(function(r){ return !(r.data && r.data.children && r.data.children.length) && !(r.prefectures && r.prefectures.length); });
+    if (!need) return;
+    var sc = null;
+    try {
+      if (typeof window !== 'undefined' && window.TMOfficialScenarioBundle && window.TMOfficialScenarioBundle.length) sc = window.TMOfficialScenarioBundle[0].data;
+      else if (typeof P !== 'undefined' && P && P.mapData) sc = { mapData: P.mapData };
+    } catch (_) {}
+    if (!sc) return;
+    var srcMap = null;
+    if (sc.mapData && sc.mapData.regions && sc.mapData.regions.length) srcMap = sc.mapData;
+    else if (sc.map && sc.map.regions && sc.map.regions.length) srcMap = sc.map;
+    if (!srcMap || !srcMap.regions || !srcMap.regions.length) return;
+    map.regions.forEach(function(r){
+      if (r.data && r.data.children && r.data.children.length) return;
+      if (r.prefectures && r.prefectures.length) return;
+      var src = null;
+      for (var i = 0; i < srcMap.regions.length; i++) {
+        if (srcMap.regions[i].id === r.id || srcMap.regions[i].name === r.name || srcMap.regions[i].sourceId === r.sourceId) { src = srcMap.regions[i]; break; }
+      }
+      if (!src) return;
+      if (src.data && src.data.children) {
+        if (!r.data) r.data = {};
+        r.data.children = src.data.children;
+      }
+      if (src.prefectures && !r.prefectures) r.prefectures = src.prefectures;
+    });
+  }
   function renderFormalMap(){
     var shell = document.getElementById('tm-phase8-main-shell');
     var stage = mapStage();
@@ -1342,6 +1373,9 @@
       if (state.mapLoadRetry <= 80) setTimeout(renderFormalMapSoon, state.mapLoadRetry < 12 ? 250 : 700);
       return;
     }
+    // 2026-08-10·防御补数据：旧存档/旧数据源的 region.data.children 缺失(早期版本从 game-map.json 绑定)时·
+    // 渲染前从剧本 bundle(mapData/map)补回府州数据——否则府州档空白
+    ensurePrefectureData(map);
     state.mapLoadRetry = 0;
     var width = Number(map.width || 1200);
     var height = Number(map.height || 720);
