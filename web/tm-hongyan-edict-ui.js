@@ -258,8 +258,81 @@ async function _polishEdicts() {
     if (result) _renderPolishedEdict(panel, result);
     else panel.innerHTML = '<div style="color:var(--color-foreground-muted);text-align:center;">\u6DA6\u8272\u672A\u8FD4\u56DE\u5185\u5BB9</div>';
   } catch(e) {
-    panel.innerHTML = '<div style="color:var(--vermillion-400);">\u6DA6\u8272\u5931\u8D25\uFF1A' + escHtml(e.message || '') + '</div>';
+    // 2026-08-10·润色失败不再让"写诏书失败"：回退为按草拟内容成稿（可直接颁行）
+    var _fbTxt = parts.map(function(p) { return '\u3010' + p.label + '\u3011' + p.content; }).join('\n\n');
+    try { _renderPolishedEdict(panel, _fbTxt); } catch(_e2) { panel.innerHTML = '<div style="color:var(--vermillion-400);">' + escHtml(_fbTxt) + '</div>'; }
+    if (typeof toast === 'function') toast('\u6709\u53F8\u6DA6\u8272\u6682\u4E0D\u53EF\u7528\u00B7\u5DF2\u6309\u8349\u62DF\u5185\u5BB9\u6210\u7A3F\u00B7\u53EF\u76F4\u63A5\u9881\u884C');
   }
+}
+
+// 2026-08-10·直接诏付有司（跳过润色·把草拟内容直接作为一道诏书颁行）
+// 返回 true=已发布·false=无草稿内容（调用方据此决定是否回落 confirmEndTurn）
+function _publishEdictDirect() {
+  var cats = [
+    { id: 'edict-pol', label: '\u653F\u4EE4' },
+    { id: 'edict-mil', label: '\u519B\u4EE4' },
+    { id: 'edict-dip', label: '\u5916\u4EA4' },
+    { id: 'edict-eco', label: '\u7ECF\u6D4E' },
+    { id: 'edict-oth', label: '\u5176\u4ED6' }
+  ];
+  var parts = [];
+  cats.forEach(function(cat) {
+    var el = _edictEl(cat.id);
+    var val = el ? el.value.trim() : '';
+    if (val) parts.push({ label: cat.label, content: val });
+  });
+  if (parts.length === 0) { if (typeof toast === 'function') toast('\u672A\u586B\u5199\u8BCF\u4EE4\u5185\u5BB9'); return false; }
+  var text = parts.map(function(p) { return '\u3010' + p.label + '\u3011' + p.content; }).join('\n\n');
+  // 复用颁行核心（与润色后颁行同一路径：formal bridge / 经典回退 / 起居注）
+  var _curTurn = GM.turn || 0;
+  if (!Array.isArray(GM.edicts)) GM.edicts = [];
+  for (var _i = 0; _i < GM.edicts.length; _i++) {
+    if (typeof GM.edicts[_i] === 'string') {
+      GM.edicts[_i] = { id: 'legacy-' + _i, turn: 0, time: '', text: GM.edicts[_i], status: 'draft', source: 'polish', style: '', styleLabel: '', polishVersion: 1, _chainEffects: [] }; // arch-ok 诏书发布写口·老字符串数据升级
+    }
+  }
+  var styleEl = _edictEl('edict-polish-style');
+  var style = styleEl ? styleEl.value : 'elegant';
+  var styleLabel = ({elegant:'\u5178\u96C5', concise:'\u7B80\u6D01', ornate:'\u534E\u4E3D', plain:'\u767D\u8BDD'})[style] || '\u5178\u96C5';
+  var _thisTurnPolish = GM.edicts.filter(function(e) { return e.turn === _curTurn && e.source === 'polish'; });
+  var polishVersion = _thisTurnPolish.length + 1;
+  GM.edicts.forEach(function(e) { // arch-ok 诏书发布写口·同回合旧颁行回落手稿
+    if (e.turn === _curTurn && e.status === 'promulgated') e.status = 'draft';
+  });
+  var formalApplied = false;
+  try {
+    var formalBridge = window.TMPhase8FormalBridge && window.TMPhase8FormalBridge.drafts;
+    if (formalBridge && typeof formalBridge.applyPolishedEdict === 'function') {
+      formalApplied = !!formalBridge.applyPolishedEdict(text, 'replace');
+    } else if (typeof window.applyPhase8FormalPolishedEdict === 'function') {
+      formalApplied = !!window.applyPhase8FormalPolishedEdict(text, 'replace');
+    }
+  } catch(_) {}
+  if (!formalApplied) {
+    ['edict-pol', 'edict-mil', 'edict-dip', 'edict-eco', 'edict-oth'].forEach(function(id) {
+      var el = _edictEl(id); if (el) el.value = '';
+    });
+  }
+  var rec = {
+    id: 'edict-' + _curTurn + '-' + Date.now() + '-' + polishVersion,
+    turn: _curTurn,
+    time: (typeof getTSText === 'function') ? getTSText(_curTurn) : '',
+    text: text,
+    status: 'promulgated',
+    source: 'polish',
+    style: style,
+    styleLabel: styleLabel,
+    polishVersion: polishVersion,
+    _chainEffects: []
+  };
+  GM.edicts.push(rec);
+  if (!GM.qijuHistory) GM.qijuHistory = [];
+  var _headline = '\u3010\u8BCF\u4E66\u00B7\u9881\u884C\u5929\u4E0B\u00B7\u76F4\u63A5\u8BCF\u4ED8\u6709\u53F8\u00B7' + styleLabel + '\u3011';
+  if (typeof TM !== 'undefined' && TM.Qiju) TM.Qiju.recordEntry({
+    turn: _curTurn, time: rec.time, category: '\u8BCF\u4EE4', content: _headline + '\n' + text, _edictRef: rec.id
+  });
+  if (typeof renderQiju === 'function') renderQiju();
+  return true;
 }
 
 function _renderPolishedEdict(panel, text) {
@@ -289,10 +362,10 @@ function _applyPolishedEdict(mode) {
   if (!text) { toast('\u8BCF\u4E66\u5185\u5BB9\u4E3A\u7A7A'); return; }
 
   // 升级 GM.edicts 为结构化数组·兼容老字符串数据
-  if (!Array.isArray(GM.edicts)) GM.edicts = [];
+  if (!Array.isArray(GM.edicts)) GM.edicts = []; // arch-ok 诏书发布写口·与 _applyPolishedEdict 同范式
   for (var _i = 0; _i < GM.edicts.length; _i++) {
     if (typeof GM.edicts[_i] === 'string') {
-      GM.edicts[_i] = { id: 'legacy-' + _i, turn: 0, time: '', text: GM.edicts[_i], status: 'draft', source: 'polish', style: '', styleLabel: '', polishVersion: 1, _chainEffects: [] };
+      GM.edicts[_i] = { id: 'legacy-' + _i, turn: 0, time: '', text: GM.edicts[_i], status: 'draft', source: 'polish', style: '', styleLabel: '', polishVersion: 1, _chainEffects: [] }; // arch-ok 诏书发布写口·老字符串数据升级
     }
   }
 
@@ -309,7 +382,7 @@ function _applyPolishedEdict(mode) {
   if (mode === 'replace') {
     status = 'promulgated';
     // 同回合之前已颁行的·回落为"诏书手稿"(被后润色稿替代)
-    GM.edicts.forEach(function(e) {
+  GM.edicts.forEach(function(e) { // arch-ok 诏书发布写口·同回合旧颁行回落手稿 {
       if (e.turn === _curTurn && e.status === 'promulgated') e.status = 'draft';
     });
     var formalApplied = false;
@@ -347,10 +420,10 @@ function _applyPolishedEdict(mode) {
     polishVersion: polishVersion,
     _chainEffects: []
   };
-  GM.edicts.push(rec);
+  GM.edicts.push(rec); // arch-ok 诏书发布写口·正式入档
 
   // 诏书入起居注（"诏令"分类·即时可见）
-  if (!GM.qijuHistory) GM.qijuHistory = [];
+  if (!GM.qijuHistory) GM.qijuHistory = []; // arch-ok 起居注写口
   var _statusLabel = status === 'promulgated' ? '\u9881\u884C\u5929\u4E0B' : '\u8BCF\u4E66\u624B\u7A3F';
   var _headline = '\u3010\u8BCF\u4E66\u00B7' + _statusLabel + '\u00B7\u7B2C' + polishVersion + '\u6B21\u6DA6\u8272\u00B7' + styleLabel + '\u3011';
   if (typeof TM !== 'undefined' && TM.Qiju) TM.Qiju.recordEntry({
@@ -374,5 +447,6 @@ function _applyPolishedEdict(mode) {
 if (typeof window !== 'undefined') {
   window._polishEdicts = _polishEdicts;
   window._applyPolishedEdict = _applyPolishedEdict;
+  window._publishEdictDirect = _publishEdictDirect;
   window._hidePolishedEdict = _hidePolishedEdict;
 }

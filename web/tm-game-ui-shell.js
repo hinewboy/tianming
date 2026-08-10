@@ -201,6 +201,8 @@ function renderGameState(){
   edictHTML += '<option value="plain">\u767D\u8BDD\u6587\u8A00</option>';
   edictHTML += '</select>';
   edictHTML += '<button class="ed-polish-btn" onclick="_polishEdicts()">\u6709 \u53F8 \u6DA6 \u8272</button>';
+  // 2026-08-10·直接诏付有司（跳过润色·按草拟内容直接颁行）
+  edictHTML += '<button class="ed-polish-btn" onclick="if(window._publishEdictDirect)window._publishEdictDirect();" title="跳过润色·按草拟内容直接颁行">\u8BCF \u4ED8 \u6709 \u53F8</button>';
   edictHTML += '</div>';
 
   // 润色结果区

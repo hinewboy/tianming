@@ -2332,7 +2332,7 @@
     html += '<div class="col-actions">';
     html += '<button type="button" class="act-polish" onclick="if(window._polishEdicts)window._polishEdicts();else if(window.toast)toast(\'诏书润色模块尚未载入\')"><span class="al">有<br>司<br>润<br>色</span></button>';
     html += '<div class="act-spacer"></div>';
-    html += '<button type="button" class="act-seal" id="btn-end" onclick="var b=this;b.classList.remove(&quot;stamped&quot;);void b.offsetWidth;b.classList.add(&quot;stamped&quot;);if(window.confirmEndTurn)window.confirmEndTurn();"><span class="al">诏<br>付<br>有<br>司</span></button>';
+    html += '<button type="button" class="act-seal" id="btn-end" onclick="var b=this;b.classList.remove(&quot;stamped&quot;);void b.offsetWidth;b.classList.add(&quot;stamped&quot;);if(window._publishEdictDirect&amp;&amp;window._publishEdictDirect()){if(window.toast)window.toast(&quot;诏书已诏付有司颁行天下（跳过润色）&quot;);}else if(window.confirmEndTurn)window.confirmEndTurn();"><span class="al">诏<br>付<br>有<br>司</span></button>';
     html += '</div>';
     html += '</div>';     // /silk-body
     // 历史诏书弹窗

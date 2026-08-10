@@ -138,6 +138,37 @@ function _ty2_pickPending(sel) {
 }
 
 async function _ty2_startSession() {
+  // 2026-08-10·御前召对(shizheng)直入廷议时 CY/朝会模态可能未初始化——兜底建骨架
+  // （旧 bug：从御案时政「御前召对」进来开议后窗口消失无事件 = cy-body null 抛错中断）
+  if (typeof CY === 'undefined' || !CY) {
+    try { window.CY = { open: true, phase: 'setup', topic: '', selected: [], messages: [], speaking: false, abortCtrl: null, round: 0, mode: 'tinyi', maxRounds: 99, _playerActions: [], _pendingPlayerLine: null, _abortChaoyi: false, _ty2: null }; } catch (_cyE) {}
+  }
+  var body = _$('cy-body');
+  if (!body) {
+    try {
+      var _m2 = document.getElementById('chaoyi-modal');
+      if (!_m2) {
+        _m2 = document.createElement('div');
+        _m2.className = 'modal-bg show';
+        _m2.id = 'chaoyi-modal';
+        _m2.innerHTML = '<div style="background:var(--bg-1);border:1px solid var(--gold-d);border-radius:12px;width:95%;max-width:860px;height:88vh;display:flex;flex-direction:column;overflow:hidden;">'
+          + '<div style="padding:0.8rem 1.2rem;border-bottom:1px solid var(--bdr);display:flex;justify-content:space-between;align-items:center;">'
+          + '<div id="cy-mode-label" style="font-size:1.1rem;font-weight:700;color:var(--gold);">\uD83C\uDFDB \u5EF7\u8BAE</div>'
+          + '<button class="bt bs bsm" onclick="closeChaoyi()">\u2715 \u9000\u671D</button></div>'
+          + '<div id="cy-topic" style="padding:0.5rem 1.2rem;border-bottom:1px solid var(--bdr);display:none;font-size:0.9rem;color:var(--gold-l);"></div>'
+          + '<div id="cy-body" style="flex:1;overflow-y:auto;padding:1rem;"></div>'
+          + '<div id="cy-input-row" style="padding:0.5rem 0.8rem;border-top:1px solid var(--bdr);background:var(--color-elevated);display:none;align-items:center;gap:0.4rem;">'
+          + '<input type="text" id="cy-player-input" placeholder="\u965B\u4E0B\u6B32\u8A00\u2026\u2026(\u56DE\u8F66\u63D2\u8A00)" style="flex:1;padding:0.4rem 0.6rem;background:var(--color-surface);border:1px solid var(--color-border);border-radius:var(--radius-sm);color:var(--color-foreground);font-size:0.8rem;" onkeydown="if(event.key===\'Enter\'){_cySubmitPlayerLine();}" />'
+          + '<button class="bt bsm bp" onclick="_cySubmitPlayerLine()">\uD83D\uDCE3 \u63D2\u8A00</button>'
+          + '<button class="bt bsm" style="color:var(--vermillion-400);" onclick="_cyAbortChaoyi()">\u23F8 \u6253\u65AD</button>'
+          + '</div>'
+          + '<div id="cy-footer" style="padding:0.6rem 1rem;border-top:1px solid var(--bdr);"></div></div>';
+        document.body.appendChild(_m2);
+      }
+    } catch (_mbE) {}
+    body = _$('cy-body');
+  }
+  if (!body) { if (typeof toast === 'function') toast('\u5EF7\u8BAE\u754C\u9762\u521D\u59CB\u5316\u5931\u8D25'); return; }
   var topic = (_$('ty2-topic')||{}).value || '';
   topic = topic.trim();
   if (!topic) { toast('请输入议题'); return; }

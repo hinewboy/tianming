@@ -1832,6 +1832,9 @@ input,textarea,select{pointer-events:auto!important;position:relative;z-index:10
 .ed-action-bar{margin-top:28px;text-align:center;display:flex;gap:12px;justify-content:center;}
 /* ═════════ 诏书润色·卷轴式（ed-scroll-*）═════════ */
 .ed-scroll{position:relative;margin:32px 6px 0 6px;padding:28px 40px 32px;background-color:#f4eadd;background-image:repeating-linear-gradient(90deg,transparent 0,transparent 2.5em,rgba(107,93,71,0.08) 2.5em,rgba(107,93,71,0.08) calc(2.5em + 1px)),radial-gradient(circle at 20% 30%,rgba(139,90,50,0.05) 1px,transparent 2px),radial-gradient(circle at 75% 60%,rgba(139,90,50,0.04) 1px,transparent 2px),radial-gradient(circle at 50% 85%,rgba(139,90,50,0.03) 1px,transparent 2px);background-size:auto,130px 130px,150px 150px,110px 110px;border-radius:2px;box-shadow:0 6px 20px rgba(0,0,0,0.5),inset 0 0 60px rgba(139,90,50,0.08);color:#1a1410;font-family:var(--font-serif);line-height:2;font-size:15px;}
+/* 2026-08-10·润色卡片容器补背景(修复"透明窗口"：外层卡片此前无 background·纸面主题下透底) */
+.ed-polish-card{position:relative;background:linear-gradient(to bottom,rgba(26,20,14,0.94),rgba(20,16,11,0.96));border:1px solid rgba(184,154,83,0.28);border-radius:4px;padding:10px 16px 14px;box-shadow:0 12px 36px rgba(0,0,0,0.5);}
+.ed-polish-card.loading{min-height:60px;display:flex;align-items:center;justify-content:center;color:var(--color-foreground-muted);letter-spacing:0.2em;font-family:var(--font-serif);}
 .ed-scroll::before,.ed-scroll::after{content:"";position:absolute;left:-12px;right:-12px;height:16px;background:linear-gradient(to bottom,#6b5a30 0%,#8d7640 40%,#6b5a30 100%);border:1px solid #3d2e18;border-radius:8px;box-shadow:0 2px 4px rgba(0,0,0,0.4),inset 0 1px 0 rgba(255,255,255,0.15);}
 .ed-scroll::before{top:-8px;}
 .ed-scroll::after{bottom:-8px;}

@@ -1314,6 +1314,14 @@
     }
     state._lastFormalMapSig = _fmSig;
     var visibleRegions = visibleRegionsForScale(map, state.mapScale);  // 阶段2·按层级(天下/行省/府县)过滤
+    // 2026-08-10·府州档无数据提示：数据仅绘至行省时明确告知（非 bug·避免玩家以为坏了）
+    if (state.mapScale === 'prefecture' && !state._prefHintShown) {
+      var _hasPref = (map.regions || []).some(function(r){ return ['prefecture','county','district'].indexOf(String(r.level || '')) >= 0; });
+      if (!_hasPref) {
+        state._prefHintShown = true;
+        try { if (typeof toast === 'function') toast('本剧本舆图仅绘至行省·暂无府州级区划数据（回显行省为底图）'); } catch(_){}
+      }
+    }
     var regionWashes = visibleRegions.map(function(r){
       var d = pathForRegion(r);
       if (!d) return '';
