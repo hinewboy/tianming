@@ -4131,6 +4131,19 @@
         sysP = _segs.map(function(_s){ return _s.text; }).join('');
         _dbg('[Prompt] sysP分段感知收束 → ' + sysP.length + '/' + _sysPMaxChars);
       }
+      // 2026-08-10·省 token 优化：稳定段前置（前缀缓存友好）。
+      // base/worldPlan/socialRules/roster/tail 整局几乎不变 → 置前；每回合动态段（events/digest/context…）置后。
+      // 效果：整条 sysP 前缀字节级稳定 → DeepSeek/OpenAI 自动前缀缓存 + Anthropic cache_control 均能命中。
+      // 内容零增删·仅拼接顺序变化。
+      var _STABLE_FIRST = { base:1, worldPlan:1, socialRules:1, roster:1, tail:1 };
+      if (_segs.length > 1) {
+        var _stableSegs = [], _dynSegs = [];
+        for (var _rs = 0; _rs < _segs.length; _rs++) {
+          if (_STABLE_FIRST[_segs[_rs].name]) _stableSegs.push(_segs[_rs]); else _dynSegs.push(_segs[_rs]);
+        }
+        _segs = _stableSegs.concat(_dynSegs);
+        sysP = _segs.map(function(_s){ return _s.text; }).join('');
+      }
       var sysBlocks = {};
       _segs.forEach(function(_s){ sysBlocks[_s.name] = (sysBlocks[_s.name] || '') + _s.text; });
       ctx.prompt.sysBlocks = sysBlocks;
