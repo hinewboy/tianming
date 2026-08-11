@@ -2751,6 +2751,8 @@ body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:999;o
 /* 展开面板 */
 .ogp-panel{grid-column:1/-1;max-height:0;overflow:hidden;transition:max-height 0.32s cubic-bezier(0.2,0.8,0.2,1),padding 0.32s,opacity 0.28s;padding:0 18px;opacity:0;background:repeating-linear-gradient(90deg,transparent 0,transparent 40px,rgba(107,93,71,0.025) 40px,rgba(107,93,71,0.025) 41px),linear-gradient(to bottom,rgba(107,176,124,0.04),transparent 200px),#1a1510;border:1px solid rgba(107,176,124,0.2);border-radius:4px;margin-top:-4px;position:relative;}
 .ogp-panel.open{max-height:2400px;padding:18px;opacity:1;}
+/* 深面板（含子部门·如地方官16省）：放开高度限制·防内容被截断(2026-08-12·用户反馈翻到广西就没了) */
+.ogp-panel-deep.open{max-height:99999px;}
 .ogp-panel .title{font-size:12px;color:#94c4a3;letter-spacing:0.25em;margin-bottom:14px;padding-bottom:8px;border-bottom:1px dashed rgba(107,176,124,0.22);display:flex;align-items:baseline;gap:10px;}
 .ogp-panel .title b{color:var(--color-foreground);font-weight:700;font-size:14px;letter-spacing:0.15em;}
 .ogp-panel .title small{color:var(--ink-300);font-size:11px;margin-left:auto;letter-spacing:0.15em;font-weight:400;}

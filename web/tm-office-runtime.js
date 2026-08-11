@@ -619,7 +619,7 @@ function _renderOfficeTreeList(container) {
       });
     })(d, [idx + (emperor?1:0)]);
 
-    bodyHtml += '<div class="ogp-panel open">'
+    bodyHtml += '<div class="ogp-panel open' + ((d.subs && d.subs.length) ? ' ogp-panel-deep' : '') + '">'
       + '<div class="title">\u3014<b>' + escHtml(d.name||'?') + '</b>\u3015<small>\u7F16 ' + cnt.posCount + ' \u00B7 \u5B9E ' + cnt.filCount + (cnt.vacCount>0?(' \u00B7 \u7A7A ' + cnt.vacCount):'') + '</small></div>'
       + '<div class="ogp-positions">' + (positionsHtml || '<div style="grid-column:1/-1;text-align:center;color:var(--color-foreground-muted);padding:2rem;">\u65E0\u5339\u914D\u804C\u4F4D</div>') + '</div>'
       + '</div>';
