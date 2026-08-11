@@ -1608,7 +1608,7 @@ async function _kejuGenExaminerSuggestions(exam) {
     try {
       // 时空约束·扫描殿试题面涉议人物·考官排序建议(JSON·clauseOnly)（typeof守卫·防加载序）
       if (typeof _buildTemporalConstraint === 'function') { try { var _tcMSug = (typeof _tcScanMentionedNames === 'function') ? _tcScanMentionedNames(((exam && exam.playerQuestion) || ''), (ex && ex.name ? [ex.name] : []), 10) : []; prompt += _buildTemporalConstraint(null, { clauseOnly: true, mentionedNames: _tcMSug }); } catch (_tcE) {} }
-      var raw = await callAISmart(prompt, 1500, { maxRetries: 1 });  // T1389: 3000->1500
+      var raw = await callAISmart(prompt, 800, { maxRetries: 1 });  // T1390: 3000->800
       var parsed = (typeof extractJSON === 'function') ? extractJSON(raw) : null;
       if (!parsed) { var m = raw.match(/\[[\s\S]*\]/); if (m) try { parsed = JSON.parse(m[0]); } catch(_){} }
       if (Array.isArray(parsed)) {
