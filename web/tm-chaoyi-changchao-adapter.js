@@ -1081,7 +1081,7 @@ async function _cc3_aiGenReact(name, item, role, onChunk) {
           onChunk: (partial) => {
             if (typeof onChunk === 'function') {
               const lineSoFar = extractLineFromPartial(partial);
-              if (lineSoFar) onChunk(lineSoFar);
+              if (lineSoFar) onChunk(lineSoFar.slice(0, 150));   // T1379: stream cap 150
             }
           }
         }
@@ -1107,7 +1107,7 @@ async function _cc3_aiGenReact(name, item, role, onChunk) {
     if (ln) ln = ln.replace(/[\s"]+$/, '').trim();   // 去截断尾部残引号/空白
     if (!ln || ln.length < 6) return null;
     const sm = raw.match(/"stance"\s*:\s*"(support|oppose|mediate|neutral)"/);
-    const salv = { stance: sm ? sm[1] : 'neutral', line: ln, _salvaged: true };
+    const salv = { stance: sm ? sm[1] : 'neutral', line: ln.slice(0, 150), _salvaged: true };   // T1379
     if (_modeTrace) salv._modeTrace = _modeTrace;
     return salv;
   }
@@ -1119,7 +1119,7 @@ async function _cc3_aiGenReact(name, item, role, onChunk) {
     const validStances = ['support', 'oppose', 'mediate', 'neutral'];
     const validModes   = ['lead', 'second', 'rebut', 'soften', 'pivot', 'augment'];
     const stance = validStances.indexOf(obj.stance) >= 0 ? obj.stance : 'neutral';
-    const result = { stance: stance, line: obj.line.trim() };
+    const result = { stance: stance, line: obj.line.trim().slice(0, 150) };   // T1379: hard cap 150
 
     // v3.1·LLM 回执的 mode·跟我们推的对比·不匹配 warn (不阻断·只 trace)
     if (typeof obj.mode === 'string' && validModes.indexOf(obj.mode) >= 0) {
@@ -1153,7 +1153,13 @@ async function _cc3_streamReactBubble(npc, item, role) {
   // 走 AI；失败回退原 mock line
   let aiResult = null;
   if (aiEnabled()) {
-    try { aiResult = await _cc3_aiGenReact(npc.name, item, role, onChunk); } catch (e) {}
+    try {
+      // T1379: 15s timeout guard - no infinite '...' bubble
+      aiResult = await Promise.race([
+        _cc3_aiGenReact(npc.name, item, role, onChunk),
+        new Promise(function(res) { setTimeout(function() { res(null); }, 15000); })
+      ]);
+    } catch (e) {}
   }
   if (aiResult && aiResult.line) {
     if (textEl) textEl.textContent = aiResult.line;

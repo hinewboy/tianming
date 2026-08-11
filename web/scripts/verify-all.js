@@ -170,6 +170,7 @@ const checks = [
   { name: 'memory-capacity', file: 'smoke-memory-capacity.js', estSec: 1, expectExit: 0 },
   { name: 'memory-era-rollup', file: 'smoke-memory-era-rollup.js', estSec: 1, expectExit: 0 },
   { name: 'memory-focus-collect', file: 'smoke-memory-focus-collect.js', estSec: 1, expectExit: 0 },
+  { name: 'chaoyi-speech-concision', file: 'smoke-chaoyi-speech-concision.js', estSec: 1, expectExit: 0 },
   { name: 'memory-recency-decay', file: 'smoke-memory-recency-decay.js', estSec: 1, expectExit: 0 },
   { name: 'memory-sanitize', file: 'smoke-memory-sanitize.js', estSec: 1, expectExit: 0 },
   { name: 'memory-failed-edict-lesson', file: 'smoke-memory-failed-edict-lesson.js', estSec: 1, expectExit: 0 },
