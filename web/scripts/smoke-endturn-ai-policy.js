@@ -36,7 +36,7 @@ function assertPolicy(id, expected) {
   }
 }
 
-assertPolicy('sc1', { priority: 'critical', timeoutMs: 150000, maxRetries: 2, subcallRetries: 0 });  // Phase 0 D-1·maxRetries 1→2
+assertPolicy('sc1', { priority: 'critical', timeoutMs: 90000, maxRetries: 1, subcallRetries: 0 });  // T1382: 150s→90s·retries 2→1(治推演项1/34卡太久·快速失败→快速降级)
 assertPolicy('sc1_rescue', { priority: 'critical', timeoutMs: 60000, maxRetries: 0, repairTimeoutMs: 30000, subcallRetries: 0 });
 assertPolicy('sc1b', { priority: 'high', timeoutMs: 90000, maxRetries: 1 });
 assertPolicy('sc1c', { priority: 'high', timeoutMs: 90000, maxRetries: 1 });
