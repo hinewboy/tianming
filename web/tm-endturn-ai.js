@@ -3381,7 +3381,7 @@
 
       // 1.2+1.8+S1：ModelAdapter温度 + OpenAI原生JSON模式 + 流式感知进度
       // 动态 max_tokens：取模型单次最大输出（_MODEL_CTX_MAP）与业务需要 16K 的较小值·避免小模型被要求超限、大模型被限制过保守
-      var _sc1BaseTok = Math.min(_effectiveOutCap || 5000, 5000); // T1385(2026-08-11)·deepseek 专项: 9K→5K(输出规模约束后 5K 足够·deepseek 慢输出·token 即时间)
+      var _sc1BaseTok = Math.min(_effectiveOutCap || 7500, 7500); // T1386(2026-08-11)·5000 截断事故→7500: deepseek 输出 SC1 JSON 需 6-8K·5000 系统性截断(玩家 toast「多次被截断」)·7500 与输出规模约束共存
       // Phase 2 A1 真接入·按 SC1_SCHEMA_TIERS·按 modelCap 自动删 extended/common 字段段 (low-tier model)
       try {
         var _capK_A1 = _effectiveOutCap ? Math.round(_effectiveOutCap / 1024) : 16;

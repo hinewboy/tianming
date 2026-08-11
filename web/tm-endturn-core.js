@@ -244,7 +244,7 @@ async function _endTurnInternal() {
 
 async function endTurn(){
   // 入口：显示"是否例行朝会"弹窗
-  if (GM.busy) return;
+  if (GM.busy) { try { if (typeof toast === 'function') toast('上一回合结算进行中，请稍候…'); } catch(_){} return; }  // T1386: 静默拦截→可见反馈(治「点颁行天下没反应」)
   // ★[无密钥前置守卫·2026-06-14] 天命以 AI 为引擎，未配 API 密钥则过回合纯空转——
   //   旧行为：深层 if(P.ai.key) 无 else，回合数照变而世界毫无反应，新玩家误判为「游戏坏了」。
   //   此处在入口处一次性拦下：明确告知非故障 + 一键前往配置，绝不静默空转。
@@ -270,7 +270,7 @@ async function endTurn(){
     try { console.warn('[endTurn] NPC in-turn timer cancel failed', _npcInTurnCancelE); } catch(_){}
   }
   // 重入闸：校准 await(BYOK 下可达数十秒)期间 GM.busy 尚未置位·连点曾双跑 pre-submit 按回合维护+叠出第二个朔朝弹窗(2026-07-04 审查定罪)
-  if (endTurn._preSubmitInFlight) return;
+  if (endTurn._preSubmitInFlight) { try { if (typeof toast === 'function') toast('上一回合提交处理中，请稍候…'); } catch(_){} return; }  // T1386: 静默拦截→可见反馈
   endTurn._preSubmitInFlight = true;
   try {
     await _runPreSubmitPartyClassCalibration();
