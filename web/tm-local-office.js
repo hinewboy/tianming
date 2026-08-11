@@ -102,14 +102,10 @@
         positions: [],
         subs: []
       };
-      // 省级职位（明制）：巡抚必设·用历史专名（顺天/应天/辽东巡抚·匹配剧本已有角色）
+      // 省级职位（明制·2026-08-12 用户确认只加巡抚/知府）：巡抚必设·用历史专名（顺天/应天/辽东巡抚·匹配剧本已有角色）
+      // 注：不设布政使/按察使——原有官职体系不动·仅新增巡抚与知府两级
       var xunfuName = _XUNFU_NAME[provName] || _XUNFU_NAME[nm] || (provName + '巡抚');
       provNode.positions.push(_mkPos(xunfuName, 'province', r.id || r.name, 'xunfu'));
-      // 布政使/按察使仅 13 布政使司（两京直隶六部·辽东都司制·均不设）
-      if (isProv) {
-        provNode.positions.push(_mkPos(provName + '左布政使', 'province', r.id || r.name, 'buzhengshi'));
-        provNode.positions.push(_mkPos(provName + '按察使', 'province', r.id || r.name, 'anchashi'));
-      }
       // 府级：children 即府级数据（数据层级保证从属关系·不会挂错省）
       var prefs = (r.data && Array.isArray(r.data.children)) ? r.data.children : (r.prefectures || []);
       prefs.forEach(function (p) {
