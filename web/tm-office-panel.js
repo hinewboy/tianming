@@ -1598,7 +1598,7 @@ function _bnDownload(txt) {
 //  结束回合确认弹窗
 // ============================================================
 function confirmEndTurn(){
-  if(GM.busy)return;
+  if(GM.busy){ try { if(typeof toast==='function') toast('上一回合结算进行中，请稍候…'); } catch(_){} return; }  // T1387: 静默拦截→可见反馈
   try {
     if (window.TMPhase8FormalBridge && typeof window.TMPhase8FormalBridge.syncEdictDraftsToLegacy === 'function') window.TMPhase8FormalBridge.syncEdictDraftsToLegacy();
     else if (typeof window.syncPhase8FormalEdictDrafts === 'function') window.syncPhase8FormalEdictDrafts();
