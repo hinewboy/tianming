@@ -90,6 +90,30 @@
     '笃实践履，耻为空谈，凡所治事必究其本末。'
   ];
 
+  // ── 外貌库（文本·参考剧本 appearance 描述格式） ──
+  var _APPEARANCES = [
+    '面目清癯，眉目端正，举止从容。',
+    '身材中等，面色微黄，目光沉静。',
+    '体貌魁伟，浓眉阔口，声如洪钟。',
+    '清瘦文弱，眉宇间有书卷气。',
+    '面白微须，神采内敛，衣冠整肃。',
+    '身量颀长，目光锐利，行止有度。',
+    '面色黧黑，额角见风霜，气息沉稳。',
+    '形貌端雅，谈笑温润，有士人风度。'
+  ];
+
+  // ── 谈吐库（文本·参考剧本 diction 描述格式） ──
+  var _DICTIONS = [
+    '言辞简练，应答有度。',
+    '言谈机敏，长于论辩。',
+    '语速舒缓，措辞审慎。',
+    '不善言辞，然出语恳切。',
+    '雄谈快论，声震四座。',
+    '谦和守礼，语不妄发。',
+    '引经据典，口若悬河。',
+    '朴实无华，句句落实。'
+  ];
+
   // ── 工具 ──
   function _pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
   function _rand(min, max) { return min + Math.floor(Math.random() * (max - min + 1)); }
@@ -136,13 +160,18 @@
       var age = _norm(28, 6, 20, 40);
       var birthYear = year - age;
       var bp = _pick(_BIRTHPLACES);
-      // 属性：普通官员水平·少量潜才（5% 双 65+）
-      var isTalent = Math.random() < 0.05;
-      var administration = isTalent ? _norm(66, 6, 55, 78) : _norm(48, 9, 32, 64);
-      var intelligence = isTalent ? _norm(68, 6, 55, 80) : _norm(50, 10, 32, 66);
-      var learning = _norm(58, 10, 40, 82);
-      var appearance = _norm(50, 12, 30, 75);
-      var diction = _norm(52, 12, 30, 78);
+      // 属性：对齐剧本分布（admin 均值55·intel 均值68·普通官员水平·少量潜才）
+      var isTalent = Math.random() < 0.1;
+      var administration = isTalent ? _norm(66, 6, 55, 85) : _norm(52, 9, 35, 70);
+      var intelligence = isTalent ? _norm(76, 6, 62, 92) : _norm(64, 9, 45, 80);
+      // learning = 功名文本（参考剧本「进士/白身」格式·年号按年份换算·中举年不晚于当前）
+      var _jurenYear = Math.min(birthYear + 25, year - 2);   // 约 25 岁中举·最晚 2 年前
+      function _eraText(y) {
+        if (y >= 1628) return '崇祯' + (y - 1627);
+        if (y >= 1621) return '天启' + (y - 1620);
+        return '万历' + (y - 1572);
+      }
+      var _learning = _eraText(_jurenYear) + '年举人';
       var bio = bp.split('·')[0] + '人。' + cls.desc + _pick(_ASPIRATIONS);
       var c = {
         name: name,
@@ -154,14 +183,14 @@
         birthYear: birthYear,
         birthplace: bp,
         ethnicity: '汉',
-        faith: '儒学',
-        culture: '汉',
-        learning: learning,
-        appearance: appearance,
-        diction: diction,
+        faith: '儒',
+        culture: cls.cls,               // 参考剧本 culture 文本（江南·徽州风格→出身）
+        learning: _learning,           // 功名文本（参考剧本格式）
+        appearance: _pick(_APPEARANCES),   // 外貌文本
+        diction: _pick(_DICTIONS),         // 谈吐文本
         administration: administration,
         intelligence: intelligence,
-        role: '生员',
+        role: '新科进士',              // 参考剧本 role 定位
         officialTitle: '',
         title: '',
         // 科举候选字段（参考历史人物池候选对象）
