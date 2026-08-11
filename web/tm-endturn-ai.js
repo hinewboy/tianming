@@ -874,9 +874,11 @@
           var _useAnthropicCache = (_provider === 'anthropic' && _len > 1500 && !_ccDisabled);
           var _openaiNative = (P.ai && P.ai.url && /api\.openai\.com/i.test(P.ai.url));
           var _openaiAuto = (_provider === 'openai' && _openaiNative && _len > 1500);
+          // T1385·deepseek 自动前缀缓存（官方自动·无需参数）——诊断标记：命中 system 稳定前缀·输入成本低
+          var _deepseekAuto = (_provider === 'deepseek' && (P.ai && P.ai.url && /api\.deepseek\.com/i.test(P.ai.url)) && _len > 512);
           // diagnostic·让 Phase 7 cost panel 能区分 cache_provider
-          if (GM && (_useAnthropicCache || _openaiAuto)) {
-            GM._sysCacheMode = _useAnthropicCache ? 'anthropic-explicit' : 'openai-auto';
+          if (GM && (_useAnthropicCache || _openaiAuto || _deepseekAuto)) {
+            GM._sysCacheMode = _useAnthropicCache ? 'anthropic-explicit' : (_openaiAuto ? 'openai-auto' : 'deepseek-auto');
             GM._sysCacheLen = _len;
           } else if (GM) {
             GM._sysCacheMode = 'none';
@@ -3379,7 +3381,7 @@
 
       // 1.2+1.8+S1：ModelAdapter温度 + OpenAI原生JSON模式 + 流式感知进度
       // 动态 max_tokens：取模型单次最大输出（_MODEL_CTX_MAP）与业务需要 16K 的较小值·避免小模型被要求超限、大模型被限制过保守
-      var _sc1BaseTok = Math.min(_effectiveOutCap || 9000, 9000); // T1382(2026-08-11)·输出上限再收紧 12K→9K(治推演项1/34过久·concise 实际4-6K不受影响·防话痨)
+      var _sc1BaseTok = Math.min(_effectiveOutCap || 5000, 5000); // T1385(2026-08-11)·deepseek 专项: 9K→5K(输出规模约束后 5K 足够·deepseek 慢输出·token 即时间)
       // Phase 2 A1 真接入·按 SC1_SCHEMA_TIERS·按 modelCap 自动删 extended/common 字段段 (low-tier model)
       try {
         var _capK_A1 = _effectiveOutCap ? Math.round(_effectiveOutCap / 1024) : 16;
@@ -3681,7 +3683,11 @@
       tp1 += '\n\n=== 输出格式强约束 (FINAL RULE·不可违反) ===\n'
            + 'YOU MUST RETURN JSON ONLY. 不要包裹 markdown 代码块·不要前言·不要解释·不要附加任何 prose。\n'
            + '第一个字符必须是 `{`·最后一个字符必须是 `}`。任何非 JSON 字符都会导致整回合推演失败·后续 sc1b/sc1c/sc1d/sc2 等子调用会全部降级。\n'
-           + '若某段叙事字段超出长度·宁可截短不要省略 JSON 结构。';
+           + '若某段叙事字段超出长度·宁可截短不要省略 JSON 结构。'
+           + '\n\n=== 输出规模约束 (T1385·deepseek 专项·不可违反) ===\n'
+           + '· events 最多 8 条·每条 50 字内 (只收世界级要事·琐碎合并)·npc_actions 最多 6 条·char_updates 最多 6 条\n'
+           + '· faction_events 最多 4 条·fiscal_adjustments 最多 4 条·army_changes 最多 4 条\n'
+           + '· 字段宁精勿滥·写满不奖·简洁为上。';
       var _sc1Body = {model:P.ai.model||"gpt-4o",messages:[{role:"system",content:_maybeCacheSys(sysPFor('sc1'))},{role:"user",content:tp1}],temperature:_sc1Temp,max_tokens:_tok(_sc1BaseTok)};
       // Phase 6 Q1·strict json_schema 优先 (P.ai.openaiStrict=true)·否则 json_object
       var _sc1Rf = _selectResponseFormat(_modelFamily, _buildSc1JsonSchema);
