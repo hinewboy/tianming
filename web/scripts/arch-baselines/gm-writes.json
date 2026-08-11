@@ -15,10 +15,10 @@
     ],
     "pFactories": []
   },
-  "updatedAt": "2026-07-22T10:21:16.021Z",
+  "updatedAt": "2026-08-11T10:35:06.695Z",
   "totals": {
-    "gm": 4499,
-    "p": 733
+    "gm": 4500,
+    "p": 734
   },
   "files": {
     "map-converter.js": {
@@ -564,11 +564,11 @@
       }
     },
     "tm-hongyan-edict-ui.js": {
-      "gm": 5,
+      "gm": 4,
       "p": 0,
       "roots": {
         "gm:_edictSuggestions": 1,
-        "gm:edicts": 3,
+        "gm:edicts": 2,
         "gm:qijuHistory": 1
       }
     },
@@ -1162,7 +1162,7 @@
       }
     },
     "tm-endturn-pipeline-steps.js": {
-      "gm": 16,
+      "gm": 18,
       "p": 0,
       "roots": {
         "gm:turnChanges": 4,
@@ -1172,6 +1172,7 @@
         "gm:_turnTyrantActivities": 1,
         "gm:_longTermDigest": 1,
         "gm:_lastEndturnValidity": 1,
+        "gm:_turnAiResults": 2,
         "gm:_pendingShijiModal": 4,
         "gm:_lastEndturnAiContext": 1
       }
@@ -1198,10 +1199,10 @@
     },
     "tm-patches.js": {
       "gm": 0,
-      "p": 72,
+      "p": 73,
       "roots": {
         "p:conf": 37,
-        "p:ai": 26,
+        "p:ai": 27,
         "p:scenarios": 9
       }
     },

@@ -410,7 +410,7 @@
               if (typeof toast === 'function') toast('本回合 AI 推演降级（' + String(_why).slice(0, 180) + '）·已按保守账本推进回合·请检查 AI 诊断。'); } catch(_) {}
             try {
               var _fbCount = Number(GM && GM._endTurnFallbackCount) || 0;
-              if (GM) GM._endTurnFallbackCount = _fbCount + 1;
+              if (GM) GM._endTurnFallbackCount = _fbCount + 1;  // arch-ok: 降级计数器=管道状态机写口(T1388 裁定)
               var _fb1 = (GM && GM._turnAiResults && GM._turnAiResults.subcall1);
               if (!_fb1 || !_fb1.shizhengji || /失败|暂缺|AI降级/.test(String(_fb1.shizhengji || ''))) {
                 var _fbTurn = (GM && GM.turn) || 1;

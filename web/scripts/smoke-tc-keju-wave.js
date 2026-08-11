@@ -70,7 +70,7 @@ const PORTS = [
   { f:'tm-keju-runtime.js', m:'扫描殿试题面涉议人物·考生档案',   mode:'clauseOnly', scan:true, mention:true, pv:'metaPrompt', sk:'callAISmart(metaPrompt' },
   { f:'tm-keju-runtime.js', m:'扫描殿试题面涉议人物·答卷essay',  mode:'clauseOnly', scan:true, mention:true, pv:'batchPrompt', sk:'callAISmart(batchPrompt' },
   { f:'tm-keju-runtime.js', m:'扫描殿试题面涉议人物·主考逐卷批语', mode:'clauseOnly', scan:true, mention:true, pv:'prompt', sk:'callAISmart(prompt, _tokC' },
-  { f:'tm-keju-runtime.js', m:'扫描殿试题面涉议人物·考官排序建议', mode:'clauseOnly', scan:true, mention:true, pv:'prompt', sk:'callAISmart(prompt, 3000' },
+  { f:'tm-keju-runtime.js', m:'扫描殿试题面涉议人物·考官排序建议', mode:'clauseOnly', scan:true, mention:true, pv:'prompt', sk:'callAISmart(prompt, 800' },
   { f:'tm-keju.js', m:'扫描时局背景涉议人物·主考题本',           mode:'clauseOnly', scan:true, mention:true, pv:'prompt', sk:'callAISmart(prompt, 2000' },
   { f:'tm-keju.js', m:'不适用：此口为史实检索器',                mode:'na' },
   { f:'tm-keju-reform-llm.js', m:'不适用：纯 descriptor',        mode:'na' },

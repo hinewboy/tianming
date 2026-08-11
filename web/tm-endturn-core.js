@@ -636,8 +636,8 @@ async function _endTurnCore(){
   } finally {
     // T1387·强制复位闸：无论成败必复位 busy + 恢复按钮——治「点颁行天下没反应」
     //   历史坑：catch 内 _tmAiErrHuman/toast 二次抛错→busy 永久残留→后续点击全被静默拦
-    try { GM.busy = false; } catch(_) {}
-    try { GM._endTurnBusy = false; } catch(_) {}
+    try { GM.busy = false; } catch(_) {}        // arch-ok: endturn 状态机复位写口本体(T1387 强制复位闸)
+    try { GM._endTurnBusy = false; } catch(_) {} // arch-ok: 同上
     try {
       var _fb = _$("btn-end")||_$("btn-end-turn");
       if (_fb) { _fb.textContent = "\u9759\u5F85\u65F6\u53D8"; _fb.style.opacity = "1"; }
