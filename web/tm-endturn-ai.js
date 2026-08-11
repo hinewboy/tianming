@@ -3379,7 +3379,7 @@
 
       // 1.2+1.8+S1：ModelAdapter温度 + OpenAI原生JSON模式 + 流式感知进度
       // 动态 max_tokens：取模型单次最大输出（_MODEL_CTX_MAP）与业务需要 16K 的较小值·避免小模型被要求超限、大模型被限制过保守
-      var _sc1BaseTok = Math.min(_effectiveOutCap || 12288, 12288); // 2026-08-10·输出收紧: 16K→12K(concise 实际4-6K·防话痨写满)
+      var _sc1BaseTok = Math.min(_effectiveOutCap || 9000, 9000); // T1382(2026-08-11)·输出上限再收紧 12K→9K(治推演项1/34过久·concise 实际4-6K不受影响·防话痨)
       // Phase 2 A1 真接入·按 SC1_SCHEMA_TIERS·按 modelCap 自动删 extended/common 字段段 (low-tier model)
       try {
         var _capK_A1 = _effectiveOutCap ? Math.round(_effectiveOutCap / 1024) : 16;
@@ -4897,7 +4897,7 @@
     // Phase 2.5·sc1q 对话承诺·temp=0.3 严格·timeout 短 (并行 sc0·8s 内完成)·失败 = 增量 missed·非 critical
     // Phase 4 A5·sc25c 双调用合一 (替 sc25 + sc_consolidate)·两 LLM call Promise.allSettled
     // Phase 4 A6·sc15n 3-tier 合一 (替 sc15 + sc07)·按 modelCap 决定 tier
-    sc0:_p('normal',90000), sc1q:_p('normal',60000,30000,1,0), sc05:_p('normal',75000), sc1:_p('critical',150000,60000,2,0), sc1_rescue:_p('critical',60000,30000,0,0), sc1b:_p('high',90000), sc1c:_p('high',90000), sc1d:_p('high',90000,45000),
+    sc0:_p('normal',90000), sc1q:_p('normal',60000,30000,1,0), sc05:_p('normal',75000), sc1:_p('critical',90000,45000,1,0), sc1_rescue:_p('critical',60000,30000,0,0), sc1b:_p('high',90000), sc1c:_p('high',90000), sc1d:_p('high',90000,45000),
     sc15:_p('normal',90000), sc15n:_p('normal',90000), sc_memwrite:_p('low',45000,30000), sc16:_p('normal',90000), sc17:_p('normal',90000), sc18:_p('normal',90000),
     sc_audit:_p('normal',60000), sc19:_p('background',45000,30000), sc2:_p('normal',120000,60000), sc25:_p('high',75000), sc25c:_p('high',75000),
     sc27:_p('high',60000), sc07:_p('normal',90000), sc28:_p('low',45000,30000), sc_consolidate:_p('low',45000,30000),

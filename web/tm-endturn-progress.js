@@ -94,12 +94,12 @@
     if (_idleTimer) { clearTimeout(_idleTimer); _idleTimer = null; }
   }
   // T1377(2026-08-11)·过场提速：拍间隙 idle 蠕动从「8s 后每 2s +0.5%」加快到「4s 后每 1s +1.0%」。
-  // 治「进度条在长 AI 调用间隙长时间不动」的卡住感知（封顶 97 不变·单调护栏不变）。
+  // 治「进度条在长 AI 调用间隙长时间不动」的卡住感知（T1382: 封顶 97→98.5 与末拍上界一致·治「卡 97%」·单调护栏不变）。
   function _scheduleIdleBump(ceil) {
     _idleCeil = ceil;
     _clearIdleTimer();
     _idleTimer = setTimeout(function _tick() {
-      _idleCeil = Math.min(_idleCeil + 1.0, 97);
+      _idleCeil = Math.min(_idleCeil + 1.0, 98.5);
       if (typeof window.setLoadingCrawlCeil === 'function') window.setLoadingCrawlCeil(_idleCeil);
       _idleTimer = setTimeout(_tick, 1000);
     }, 4000);
