@@ -192,6 +192,22 @@
     // ★主官绑定官职:按治理官职找在世持有人(权威·随任命/死亡而变)·剧本静态 governor(死字段)降为兜底。
     var _officePos = firstValue(data.officialPosition, liveOffice);
     var _liveGov = _officePos ? liveRegionGovernor(_officePos) : null;
+    // ★地方官系统兜底(2026-08-12)：官职树注入的巡抚/知府作为主官·空缺显示「待补」·与官制树任命同步
+    try {
+      if (window.TMLocalOffice) {
+        var _loRef = r.adminBinding || r.id || r.name || '';
+        var _loGov = window.TMLocalOffice.localGovernorFor(_loRef, r._prefectureDossier ? 'prefecture' : 'province');
+        if (_loGov) {
+          data.officialPosition = _loGov.posName;
+          data.office = _loGov.posName;
+          if (_loGov.vacant) { data.governorVacant = true; }
+          else {
+            data.governor = _loGov.holder; data.official = _loGov.holder;
+            data.governorChar = _loGov.holder; data.governorVacant = false;
+          }
+        }
+      }
+    } catch (_) {}
     if (_liveGov) {
       data.governor = _liveGov.name; data.official = _liveGov.name;
       data.governorChar = _liveGov.name; data.governorVacant = false;

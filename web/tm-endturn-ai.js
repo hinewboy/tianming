@@ -2060,6 +2060,20 @@
           if (_lr.demotions.length) _recentHistory += ' 建议左迁:' + _lr.demotions.join('、');
           _recentHistory += '\n';
         }
+        // 地方官任免清单(2026-08-12·地方官系统)：省巡抚在任/空缺·供 AI 推演治理效果与任免建议
+        try {
+          if (typeof window !== 'undefined' && window.TMLocalOffice) {
+            var _loBrief = [];
+            window.TMLocalOffice.walkLocalPositions(function (pos) {
+              if (pos._localLevel === 'province' && pos._localKind === 'xunfu' && _loBrief.length < 10) {
+                var _hc = window.TMLocalOffice.holderChar(pos);
+                var _nm = String(pos.name).replace(/巡抚$/, '');
+                _loBrief.push(_hc ? (_nm + ':' + _hc.name) : (_nm + ':空缺'));
+              }
+            });
+            if (_loBrief.length) _recentHistory += '\n【地方巡抚】' + _loBrief.join('、') + '\n';
+          }
+        } catch (_) {}
         // 情节线索
         if (GM._plotThreads && GM._plotThreads.length > 0) {
           _recentHistory += '\n【活跃情节线索】\n';
