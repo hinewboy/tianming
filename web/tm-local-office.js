@@ -39,6 +39,11 @@
   }
 
   function _mkPos(name, level, ref, kind) {
+    // 明制品级：巡抚正二品·布政使从二品·按察使正三品·知府正四品
+    var _rank = '正四品';
+    if (kind === 'xunfu') _rank = '正二品';
+    else if (kind === 'buzhengshi') _rank = '从二品';
+    else if (kind === 'anchashi') _rank = '正三品';
     var pos = {
       name: name,
       _localOfficePos: true,
@@ -49,14 +54,25 @@
       actualHolders: [_placeholder()],
       vacancyCount: 1,
       actualCount: 0,
-      rank: level === 'province' ? '正三品' : '正四品',
-      salary: level === 'province' ? 35 : 24
+      rank: _rank,
+      salary: kind === 'zhifu' ? 24 : (kind === 'anchashi' ? 35 : 61)
     };
     return pos;
   }
 
   // ── §1 注入地方官子树（幂等） ──
-  // 树结构：地方官 → [每省子部门：positions=[巡抚/布政使/按察使]·children=[每府子部门：positions=[知府]]]
+  // 树结构：地方官 → [每省子部门：positions=[巡抚/布政使/按察使]·subs=[每府子部门：positions=[知府]]]
+  // 参考明代官制（2026-08-12·用户确认）：
+  //   · 13 布政使司 → 巡抚 + 左布政使 + 按察使 + 府知府（三司制）
+  //   · 北直隶/南直隶 → 仅巡抚（顺天巡抚/应天巡抚·直隶六部不设布政使）+ 府知府
+  //   · 辽东 → 仅巡抚（辽东巡抚·都司制无布政使）+ 府知府
+  //   · 知府为地方官任命最后一级（不再向下设同知/通判/知县）
+  //   · 外藩/敌国/藏区/海外 → 不注入（非明设官之地）
+  var _MING_PROVINCES = ['浙江', '福建', '广西', '江西', '湖广', '河南', '山西', '陕西', '四川', '贵州', '云南', '山东', '广东'];   // 13 布政使司
+  var _XUNFU_ONLY = ['北直隶', '南直隶', '辽东'];   // 两京+辽东：仅巡抚
+  var _XUNFU_NAME = { '北直隶': '顺天巡抚', '南直隶': '应天巡抚', '辽东': '辽东巡抚' };   // 历史专名（匹配剧本已有角色）
+  var _SKIP = ['后金', '蒙古', '喀尔喀', '察哈尔', '科尔沁', '土默特', '瓦剌', '叶尔羌', '吐鲁番', '哈萨克', '乌思藏', '朵甘思', '北海道', '九州', '四国', '本州', '吕宋', '朝鲜', '交趾', '澳门', '苦兀', '台湾', '女真', '漠南', '哈密', '亦力', '卫拉特'];
+
   function _ensure() {
     if (typeof GM === 'undefined' || !GM) return false;
     if (!Array.isArray(GM.officeTree)) return false;
@@ -64,41 +80,51 @@
     var map = _map();
     if (!map || !Array.isArray(map.regions) || !map.regions.length) return false;
 
-    var root = { name: '地方官', _localOfficeRoot: true, children: [] };
+    var root = { name: '地方官', _localOfficeRoot: true, subs: [] };
     map.regions.forEach(function (r) {
       if (!r || !r.name) return;
-      // 只收省级（level/regionType 判定；兜底：有 data.children 的即视作省）
-      var lv = String(r.level || r.regionType || '');
+      var nm = String(r.name);
+      // ① 外藩/敌国/藏区/海外 → 不设明官
+      var skip = _SKIP.some(function (k) { return nm.indexOf(k) >= 0; });
+      if (skip) return;
+      // ② 只认 13 布政使司 + 两京 + 辽东（其余一律不注入·避免给土司/边镇乱设巡抚）
+      var isProv = _MING_PROVINCES.some(function (k) { return nm === k || nm.indexOf(k) >= 0; });   // 兼容「浙江」/「浙江布政使司」两种写法
+      var isXunfuOnly = _XUNFU_ONLY.some(function (k) { return nm.indexOf(k) >= 0; });   // 包含匹配：辽东（明·关宁东江）→辽东
+      if (!isProv && !isXunfuOnly) return;
       var hasPrefs = (r.data && Array.isArray(r.data.children) && r.data.children.length) || (Array.isArray(r.prefectures) && r.prefectures.length);
-      if (lv && lv !== 'province' && lv !== '省' && !hasPrefs) return;
-      if (!hasPrefs && lv === '') return;
+      if (!hasPrefs) return;
 
-      var provName = String(r.name).replace(/布政使司$/, '').replace(/府$/, '');   // 应天府→应天·浙江布政使司→浙江
+      var provName = nm.replace(/布政使司$/, '').replace(/府$/, '').replace(/（[^）]*）$/g, '').replace(/\([^)]*\)$/g, '');   // 辽东（明·关宁东江）→辽东·应天府→应天
       var provNode = {
-        name: r.name,
+        name: nm,
         _regionRef: r.id || r.name,
         _localOfficeProvince: true,
-        positions: [
-          _mkPos(provName + '巡抚', 'province', r.id || r.name, 'xunfu'),
-          _mkPos(provName + '布政使', 'province', r.id || r.name, 'buzhengshi'),
-          _mkPos(provName + '按察使', 'province', r.id || r.name, 'anchashi')
-        ],
-        children: []
+        positions: [],
+        subs: []
       };
+      // 省级职位（明制）：巡抚必设·用历史专名（顺天/应天/辽东巡抚·匹配剧本已有角色）
+      var xunfuName = _XUNFU_NAME[provName] || _XUNFU_NAME[nm] || (provName + '巡抚');
+      provNode.positions.push(_mkPos(xunfuName, 'province', r.id || r.name, 'xunfu'));
+      // 布政使/按察使仅 13 布政使司（两京直隶六部·辽东都司制·均不设）
+      if (isProv) {
+        provNode.positions.push(_mkPos(provName + '左布政使', 'province', r.id || r.name, 'buzhengshi'));
+        provNode.positions.push(_mkPos(provName + '按察使', 'province', r.id || r.name, 'anchashi'));
+      }
+      // 府级：children 即府级数据（数据层级保证从属关系·不会挂错省）
       var prefs = (r.data && Array.isArray(r.data.children)) ? r.data.children : (r.prefectures || []);
       prefs.forEach(function (p) {
         if (!p || !p.name) return;
-        provNode.children.push({
+        provNode.subs.push({
           name: p.name,
           _prefRef: p.id || p.name,
           _localOfficePref: true,
           positions: [_mkPos(p.name + '知府', 'prefecture', p.id || p.name, 'zhifu')]
         });
       });
-      root.children.push(provNode);
+      root.subs.push(provNode);
     });
 
-    if (!root.children.length) return false;
+    if (!root.subs.length) return false;
     GM.officeTree.push(root);
     GM._localOfficeInjected = true;
     return true;
@@ -113,12 +139,12 @@
     if (typeof global._offAppointPerson !== 'function') return 0;
     // 遍历地方官职位·按省名匹配角色 officialTitle（如「应天巡抚」匹配省名含应天 或 官职名 == 职位名）
     (GM.officeTree || []).forEach(function (dept) {
-      if (!dept || !dept._localOfficeRoot || !Array.isArray(dept.children)) return;
-      dept.children.forEach(function (prov) {
+      if (!dept || !dept._localOfficeRoot || !Array.isArray(dept.subs)) return;
+      dept.subs.forEach(function (prov) {
         if (!prov) return;
         var allPos = [];
         (prov.positions || []).forEach(function (p) { if (p) allPos.push(p); });
-        (prov.children || []).forEach(function (pref) {
+        (prov.subs || []).forEach(function (pref) {
           if (!pref) return;
           (pref.positions || []).forEach(function (p) { if (p) allPos.push(p); });
         });
@@ -151,11 +177,11 @@
   function _walkLocalPositions(fn) {
     if (typeof GM === 'undefined' || !GM || !Array.isArray(GM.officeTree)) return;
     (GM.officeTree || []).forEach(function (dept) {
-      if (!dept || !dept._localOfficeRoot || !Array.isArray(dept.children)) return;
-      dept.children.forEach(function (prov) {
+      if (!dept || !dept._localOfficeRoot || !Array.isArray(dept.subs)) return;
+      dept.subs.forEach(function (prov) {
         if (!prov) return;
         (prov.positions || []).forEach(function (pos) { if (pos && pos._localOfficePos) fn(pos, prov, null); });
-        (prov.children || []).forEach(function (pref) {
+        (prov.subs || []).forEach(function (pref) {
           if (!pref) return;
           (pref.positions || []).forEach(function (pos) { if (pos && pos._localOfficePos) fn(pos, prov, pref); });
         });
