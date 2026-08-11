@@ -1023,6 +1023,44 @@ async function pickHistoricalCandidates(exam) {
     existingOfficials
   );
 
+  // T1391: local pool first - filter GM.chars (alive/no office/not player/age 18-60/unused) -> random 5-8, zero AI cost; AI only as fallback
+  try {
+    var _kjPool = (GM.chars || []).filter(function(c){
+      if (!c || c.alive === false || c.dead) return false;
+      if (c.isPlayer) return false;
+      if (c.spouse || c.officialTitle || (c.title && c.title.length > 0)) return false;
+      var _pn = _kjNormNameKey(c.name);
+      if (!_pn || usedNames.indexOf(c.name) >= 0 || _deadKeys[_pn]) return false;
+      var _pa = Number(c.age);
+      if (isFinite(_pa) && (_pa < 18 || _pa > 60)) return false;
+      return true;
+    });
+    if (_kjPool.length >= 3) {
+      var _kjShuf = _kjPool.slice().sort(function(){ return Math.random() - 0.5; });
+      var _kjPick = _kjShuf.slice(0, 8);
+      var _kjLocal = _kjPick.map(function(c, i){
+        return {
+          name: c.displayName || c.name,
+          age: Number(c.age) || 30,
+          class: c.class || '寒门',
+          origin: c.origin || '',
+          historicalYearMet: year - 3 + i,
+          nativeEra: P.dynasty || '',
+          party: c.party || '',
+          shiliao: String(c.bio || c.summary || '').slice(0, 60),
+          personality: c.personality || '学者',
+          famousFor: String(c.bio || '').slice(0, 40),
+          probability: 0.7,
+          _local: true
+        };
+      });
+      if (_kjLocal.length >= 3) {
+        _dbg('[科举·T1391] local pool pick:', _kjLocal.length, '(skip AI)');
+        return _kjLocal;
+      }
+    }
+  } catch(_kjE) { try { console.warn('[keju] local pick failed', _kjE); } catch(_){} }
+
   var prompt = '\u4F60\u662F\u5386\u53F2\u8003\u636E AI\u3002\u4E3A' + (P.dynasty || P.era || '') + '\u671D ' + year +
     ' \u5E74\u7684\u79D1\u4E3E\u6BBE\u8BD5\u68C0\u7D22\u5F53\u65F6\u53EF\u80FD\u5165\u9009\u7684\u5386\u53F2\u540D\u81E3\u8003\u751F\u3002\n\n' +
     '\u3010\u786C\u89C4\u5219\u3011\u6240\u9009\u4EBA\u9009\u5FC5\u987B\u4E3A\u5E03\u8863/\u76D1\u751F/\u4E3E\u4EBA/\u672A\u51FA\u4ED5\u7684\u4E66\u751F\u00B7\u7EDD\u4E0D\u80FD\u662F\u5DF2\u4EFB\u5B98\u804C\u8005\uFF08\u90FD\u5FA1\u53F2/\u5C1A\u4E66/\u5927\u5B66\u58EB/\u90E8\u4F8D\u90CE/\u5C06\u519B/\u6307\u6325\u4F7F/\u540E\u5983\u7B49\u5747\u4E0D\u53EF\uFF09\u3002\n' +
