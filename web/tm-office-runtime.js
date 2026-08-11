@@ -611,6 +611,10 @@ function _renderOfficeTreeList(container) {
         positionsHtml += _ogpRenderPosCard(p, node.name || d.name, pathArr.concat(['positions', pi]));
       });
       (node.subs||[]).forEach(function(sub, si){
+        // 子部门标题（2026-08-12·地方官系统·体现省↔巡抚/知府对应关系·美观层级）
+        var _subPos = (sub.positions || []);
+        var _subFil = _subPos.filter(function(p){ return p && (p.holder || (p.actualHolders||[]).some(function(h){ return h && h.name && h.generated !== false; })); }).length;
+        positionsHtml += '<div class="ogp-sub-title">' + escHtml(sub.name || '?') + '<small>编 ' + _subPos.length + ' · 实 ' + _subFil + '</small></div>';
         _emit(sub, pathArr.concat(['subs', si]));
       });
     })(d, [idx + (emperor?1:0)]);

@@ -83,10 +83,17 @@
     // 清理旧注入（曾注入「地方督抚」/「地方官」根的存档·2026-08-12 迁移到布政使司层级）
     _cleanupLegacy();
 
-    // 找「布政使司（两京十三省）」部门（原有·不注入其中·保持 13 左布政使原样）
-    var bz = null;
-    (GM.officeTree || []).forEach(function (d) { if (d && d.name && d.name.indexOf('布政使司') >= 0) bz = d; });
-    if (!Array.isArray(bz && bz.positions)) { /* 容错 */ }
+    // 「地方官」根部门（court:'region' 显式·显示在地方页·唯一入口·不铺长）
+    var root = null;
+    (GM.officeTree || []).forEach(function (d) { if (d && d._localOfficeRoot) root = d; });
+    if (!root) {
+      root = { name: '地方官', _localOfficeRoot: true, court: 'region', group: 'fannie', desc: '督抚与知府（按省分列·可折叠）', positions: [], subs: [] };
+      GM.officeTree.push(root);
+    }
+    if (!Array.isArray(root.subs)) root.subs = [];
+    // 列表视图(ogp)支持 subs 递归·树视图(SVG)不支持 → 注入后自动切列表视图(一次性·用户可再切回)
+    GM._officeViewMode = 'list';
+    GM._officeViewModeExplicit = true;
 
     map.regions.forEach(function (r) {
       if (!r || !r.name) return;
@@ -102,21 +109,14 @@
       if (!hasPrefs) return;
 
       var provName = nm.replace(/布政使司$/, '').replace(/府$/, '').replace(/（[^）]*）$/g, '').replace(/\([^)]*\)$/g, '');
-      // ★层级方案(2026-08-12·用户要求可折叠层级·否决不铺)：
-      //   每省建一个部门(court:'region' 显式·显示在地方页)·positions = [巡抚] + [知府们]
-      //   部门可折叠·避免 210 职位一字平铺
-      var provDept = null;
-      (GM.officeTree || []).forEach(function (d) {
-        if (!provDept && d && d._localOfficeProvDept && String(d._localOfficeRef) === String(r.id || r.name)) provDept = d;
-      });
-      if (!provDept) {
-        provDept = {
-          name: nm, _localOfficeProvDept: true, _localOfficeRef: r.id || r.name, _localOfficeRoot: false,
-          court: 'region', group: 'fannie',   // 显式分类：地方·藩臬（_officeClassifyDept 优先读 dept.court/group）
-          desc: provName + '（布政使司辖区）',
-          positions: [], subs: []
-        };
-        GM.officeTree.push(provDept);
+      // ★最终层级方案(2026-08-12·用户要求不铺长·可折叠)：
+      //   一个「地方官」部门(court:'region') → subs(16 省子部门) → 每省 positions=[巡抚]+[知府们]
+      //   列表视图(ogp)支持 subs 递归渲染(613 行)·注入后自动切 list 视图
+      var provSub = null;
+      (root.subs || []).forEach(function (s) { if (s && s.name === nm) provSub = s; });
+      if (!provSub) {
+        provSub = { name: nm, _regionRef: r.id || r.name, _localOfficeProvince: true, positions: [], subs: [] };
+        root.subs.push(provSub);
       }
       // 全局已存在职位名集合（防与地方督抚大名府知府等重复）
       var allPosNames = {};
@@ -129,7 +129,7 @@
       var xunfuExists = Object.keys(allPosNames).some(function (k) { return k.indexOf(xunfuName) >= 0; });
       if (!xunfuExists) {
         allPosNames[xunfuName] = 1;
-        provDept.positions.push(_mkPos(xunfuName, 'province', r.id || r.name, 'xunfu'));
+        provSub.positions.push(_mkPos(xunfuName, 'province', r.id || r.name, 'xunfu'));
       }
       // 知府（明境全覆盖·防重）
       var prefs = (r.data && Array.isArray(r.data.children)) ? r.data.children : (r.prefectures || []);
@@ -138,7 +138,7 @@
         var zhifuName = p.name + '知府';
         if (allPosNames[zhifuName]) return;
         allPosNames[zhifuName] = 1;
-        provDept.positions.push(_mkPos(zhifuName, 'prefecture', p.id || p.name, 'zhifu'));
+        provSub.positions.push(_mkPos(zhifuName, 'prefecture', p.id || p.name, 'zhifu'));
       });
     });
     GM._localOfficeInjected = true;
@@ -211,11 +211,9 @@
     if (typeof global._offAppointPerson !== 'function') return 0;
     // 遍历地方官职位·按省名匹配角色 officialTitle（如「应天巡抚」匹配省名含应天 或 官职名 == 职位名）
     (GM.officeTree || []).forEach(function (dept) {
-      if (!dept || !dept._localOfficeProvDept) return;
+      if (!dept || !dept._localOfficeRoot) return;
       var allPos = [];
-      // 省部门 positions = 巡抚 + 知府们
-      (dept.positions || []).forEach(function (p) { if (p) allPos.push(p); });
-      // subs 兜底（兼容旧结构）
+      // 省子部门 positions = 巡抚 + 知府们
       (dept.subs || []).forEach(function (prov) {
         if (!prov) return;
         (prov.positions || []).forEach(function (p) { if (p) allPos.push(p); });
@@ -251,15 +249,18 @@
   }
 
   // ── 遍历所有地方官职位（省巡抚+府知府）·回调 (pos, provNode, prefNode|null) ──
-  // 结构：每省一个部门(_localOfficeProvDept·court:'region') → positions = [巡抚] + [知府们]
+  // 结构：地方官根(_localOfficeRoot·court:region) → subs(省子部门) → positions=[巡抚]+[知府们]
   function _walkLocalPositions(fn) {
     if (typeof GM === 'undefined' || !GM || !Array.isArray(GM.officeTree)) return;
     (GM.officeTree || []).forEach(function (dept) {
-      if (!dept || !dept._localOfficeProvDept) return;
-      (dept.positions || []).forEach(function (pos) { if (pos && pos._localOfficePos) fn(pos, dept, null); });
+      if (!dept || !dept._localOfficeRoot) return;
       (dept.subs || []).forEach(function (prov) {
         if (!prov) return;
         (prov.positions || []).forEach(function (pos) { if (pos && pos._localOfficePos) fn(pos, prov, null); });
+        (prov.subs || []).forEach(function (pref) {
+          if (!pref) return;
+          (pref.positions || []).forEach(function (pos) { if (pos && pos._localOfficePos) fn(pos, prov, pref); });
+        });
       });
     });
   }

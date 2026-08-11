@@ -2755,6 +2755,10 @@ body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:999;o
 .ogp-panel .title b{color:var(--color-foreground);font-weight:700;font-size:14px;letter-spacing:0.15em;}
 .ogp-panel .title small{color:var(--ink-300);font-size:11px;margin-left:auto;letter-spacing:0.15em;font-weight:400;}
 .ogp-positions{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px;}
+/* 子部门标题（2026-08-12·地方官系统·省↔巡抚/知府对应关系） */
+.ogp-sub-title{grid-column:1/-1;display:flex;align-items:baseline;gap:8px;margin:12px 0 2px;padding:7px 12px;background:linear-gradient(to right,rgba(107,176,124,0.12),rgba(107,176,124,0.02));border-left:3px solid var(--celadon-400);border-radius:3px;font-size:13px;font-weight:700;color:#a8d4b5;letter-spacing:0.2em;}
+.ogp-sub-title small{color:var(--ink-300);font-size:10px;letter-spacing:0.1em;font-weight:400;margin-left:auto;}
+.ogp-sub-title + .ogp-pos{margin-top:0;}
 /* 预览样式·职位卡 */
 .ogp-pos{background:linear-gradient(to bottom,#241e18,#2e261d);border:1px solid var(--ink-bd);border-radius:4px;box-shadow:var(--shadow-sm);cursor:pointer;transition:all 0.22s cubic-bezier(0.2,0.8,0.2,1);overflow:hidden;position:relative;}
 .ogp-pos:hover{border-color:var(--gold-400);transform:translateY(-2px);box-shadow:0 6px 22px rgba(184,154,83,0.2);}
