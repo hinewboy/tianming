@@ -32,6 +32,6 @@ const systemsStep = stepsSrc.indexOf("name: 'systems'");
 assert(validateCall >= 0, 'pipeline calls validateBeforeCommit');
 assert(systemsStep >= 0 && validateCall < systemsStep, 'validity gate runs before systems step');
 assert(/_lastEndturnValidity/.test(stepsSrc), 'pipeline stores last endturn validity diagnostics');
-assert(/throw\s+/.test(stepsSrc.slice(validateCall, validateCall + 900)), 'pipeline aborts when validity gate fails');
+assert(/throw\s+/.test(stepsSrc.slice(validateCall, validateCall + 1300)), 'pipeline aborts when validity gate fails');   // T1381: toast 详情扩展占用字符·窗口 900→1300
 
 console.log('[smoke-endturn-validity-gate] pass assertions=' + passed.value);

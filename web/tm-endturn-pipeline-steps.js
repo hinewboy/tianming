@@ -396,7 +396,15 @@
           try { if (typeof GM !== 'undefined') GM._lastEndturnValidity = validity; } catch(_) {}
           if (validity && validity.status === 'failed') {
             try { if (typeof hideLoading === 'function') hideLoading(); } catch(_) {}
-            try { if (typeof toast === 'function') toast('本回合 AI 推演失败，未推进回合；请重试或检查 AI 诊断。'); } catch(_) {}
+            // T1381: 失败提示带具体原因(status/error)——治「卡第1回合只看到笼统的AI推演失败」
+            var _why = (validity.reasons || []).join('；');
+            var _cf = validity.criticalFailures || [];
+            if (_cf.length) {
+              _why += '；AI 调用错误: ' + _cf.slice(0, 3).map(function(f) {
+                return (f.label || f.id || '') + (f.status ? ' [' + f.status + ']' : '') + ' ' + String(f.error || '').slice(0, 80);
+              }).join(' | ');
+            }
+            try { if (typeof toast === 'function') toast('本回合 AI 推演失败（' + String(_why).slice(0, 200) + '）·请重试或检查 AI 诊断。'); } catch(_) {}
             if (TM.Endturn.Validity.EndturnInvalidResultError) {
               throw new TM.Endturn.Validity.EndturnInvalidResultError(validity);
             }
