@@ -106,6 +106,9 @@
     sc27: 'REVIEW',               // ★三批纠错:sc27 唯一调用点=legacy 叙事审查(followup·查时代错/人名·默认关)·
                                   //   首批按成本文档名误判为"诏令"配了 EDICT·实审 callsite 改 REVIEW(EDICT 档保留备用)
     sc07: 'COG',                  // NPC认知:需npcDeep+player+digest
+    sc1q: 'REVIEW',               // T1393·对话承诺:事实全在tp(7渠道)+NPC认知快照·sysP只供史观/名单/输出约束
+    sc05: 'REVIEW',               // T1393·因果合成:事实在tp(近3回合事件+记忆召回)·sysP只供史观/名单/输出约束
+    sc2: 'NARR',                  // T1393·后人戏说:tp自带世界状态快照+记忆表+推演摘要·NARR档含事件/digest/context/player/npcDeep/worldSocial                  // NPC认知:需npcDeep+player+digest
     sc16: 'FAC', sc16L: 'FAC',    // 势力战略:动态关系矩阵在worldState·静态factionBalance可舍
     sc18: 'FAC', sc18L: 'FAC',    // 军事:军情明细在tp18·worldState有势力态
     // [三批·谨慎区·2026-07-02] 10 个 id 逐调用点实审后启用(同受总闸门控·默认关):

@@ -69,12 +69,16 @@ ok(fn('sc07') === '[B][WP][D][C][PL][N][WS][R][T]', '② sc07→COG 含 Plan(隐
 ok(fn('sc28') === '[B][D][C][WS][WG][R][T]', '② sc28→SNAP 含 Social+Gov 当前态+digest·不带 Plan 规划meta');
 ok(['sc17', 'sc16', 'sc18', 'sc27', 'sc28', 'sc07'].every(function (id) { return fn(id).indexOf('[WL]') < 0; }), '② worldLifecycle(生灭schema)仅 FULL/NPC 带·分级档全不带');
 
-// ③ 主线 8 id 永不入表 → 恒 FULL;谨慎区 10 id 三批已实审入表
-['sc0', 'sc1', 'sc1q', 'sc1b', 'sc1c', 'sc1d', 'sc2', 'sc05'].forEach(function (id) {
+// ③ T1393·主线降档：sc1q/sc05→REVIEW、sc2→NARR（事实全在 tp·sysP 只供史观/名单/输出约束）；
+//    sc0/sc1/sc1b/sc1c/sc1d 仍永不入表 → 恒 FULL（推演红线）
+['sc0', 'sc1', 'sc1b', 'sc1c', 'sc1d'].forEach(function (id) {
   if (SYS_PROFILE_OF[id]) { F++; console.log('  ✗ ③ 主线 ' + id + ' 不应入表'); }
 });
-ok(fn('sc1') === ctx.prompt.sysP && fn('sc2') === ctx.prompt.sysP, '③ 主线 sc1/sc2 开闸下仍 FULL(永不降)');
-A++; console.log('  ✓ ③ 主线 8 个 id 全不在表(抽查通过)');
+ok(SYS_PROFILE_OF['sc1q'] === 'REVIEW' && SYS_PROFILE_OF['sc05'] === 'REVIEW' && SYS_PROFILE_OF['sc2'] === 'NARR', '③ T1393 主线降档 sc1q/sc05→REVIEW·sc2→NARR');
+ok(fn('sc1') === ctx.prompt.sysP && fn('sc1b') === ctx.prompt.sysP && fn('sc1c') === ctx.prompt.sysP && fn('sc1d') === ctx.prompt.sysP && fn('sc0') === ctx.prompt.sysP, '③ 主线 sc1/sc1b/sc1c/sc1d/sc0 开闸下仍 FULL(推演红线)');
+ok(fn('sc1q') === '[B][C][R][T]' && fn('sc05') === '[B][C][R][T]', '③ sc1q/sc05→REVIEW = base+context+roster+tail(事实全在tp)');
+ok(fn('sc2') === '[B][E][D][C][PL][N][WS][R][T]', '③ sc2→NARR = 事件+digest+context+player+npcDeep+worldSocial(叙事同源)');
+A++; console.log('  ✓ ③ 主线降档 3 入表·其余 5 恒 FULL(契约同步 T1393)');
 
 // ③b 三批·谨慎区 10 id(2026-07-02 逐调用点实审)
 ok(fn('scOl') === '[B][E][D][C][PL][N][WS][R][T]' && fn('scP') === fn('scOl'), '③b scOl/scP→NARR(事实已同源喂 user prompt·舍 Gov/Plan/生灭)');
