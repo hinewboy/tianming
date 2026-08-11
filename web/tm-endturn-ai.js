@@ -375,6 +375,12 @@
     }
 
     async function _callEndturnAI(body, opts) {
+      // T1388·快速档(默认)砍串行/低价值子调用：sc1b/sc1c/sc1d(各30-60s串行)·sc25c(伏笔双调用)·sc27(叙事审查60s)·sc07(NPC认知)——省 90-240s·应用逻辑 p1d=null 自然跳过·SC1 主推演+sc_consolidate(记忆固化)照常
+      if (opts && opts.id && !(P.ai && P.ai.fastEndTurn === false)
+          && (opts.id === 'sc1b' || opts.id === 'sc1c' || opts.id === 'sc1d' || opts.id === 'sc25c' || opts.id === 'sc27' || opts.id === 'sc07')) {
+        try { _dbg('[fastEndTurn] skip ' + opts.id + '(快速档)'); } catch(_) {}
+        return null;
+      }
       opts = _mergeCallPolicy(opts && opts.id, opts || {});
       var callUrl = opts.url || url;
       var key = opts.key || (P.ai && P.ai.key);
@@ -3569,7 +3575,7 @@
                 // T1388(2026-08-11)·循环硬截·保证 tp1 ≤ 30K 字符(≈15K tokens·deepseek 128K 窗口内)——防 104K 输入爆炸(用户实测「仍超预算·硬截中段104799字」·输入失控→推演必败→回合不推进)
                 var _htGuard = 0;
                 var _htOmitTotal = 0;
-                while ((tp1.length > 30000 || (_htGuard === 0 && _ht.status === 'critical' && _ht.tokens > _htTarget)) && _htGuard < 3) {
+                while ((tp1.length > 20000 || (_htGuard === 0 && _ht.status === 'critical' && _ht.tokens > _htTarget)) && _htGuard < 3) {
                   _htGuard++;
                   // T1388: tokens 仍超 → 按比例压；tokens 已达标仅字符超 30K → 每轮保 50%(稳定收敛·防 0.95 慢爬)
                   var _htKeepRatio = (_ht.status === 'critical') ? Math.max(0.3, Math.min(0.95, _htTarget / _ht.tokens)) : 0.5;
