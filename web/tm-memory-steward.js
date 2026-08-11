@@ -383,7 +383,23 @@
     GM = GM || global.GM;
     if (!GM) return false;
     var P = global.P || {};
-    if (!((typeof global.agentFlagOn==='function' ? global.agentFlagOn('memoryStewardEnabled') : (P.ai && P.ai.memoryStewardEnabled)) && TM.MemorySteward)) return false;
+    // T1393·记忆管家缺省开启（同快速档语义）：未显式设置即启用·显式 false 才关。
+    //   旧存档无字段 → 开（省 token：5 个独立压缩 pass → 单次结构化固化·阈值触发·零行为回归）。
+    //   显式 P.ai.memoryStewardEnabled=false（或 P.conf）→ 回落旧 5-pass。
+    var _stewardFlag = false;
+    var _stewardUnset = true;  // 是否完全未设置（缺省开判据）
+    try {
+      // agent 模式(模式 b)下 steward 属「LLM 升级」·与 agent 管线互斥（守 tm-agent-flags S6 契约·agentFlagOn 内部已处理）
+      var _agentMode = !!((P.conf && (P.conf.experimentalEnabled || P.conf.agentModeEnabled) && (P.conf.experimentalMode === 'agent')) ||
+        (P.ai && (P.ai.experimentalEnabled || P.ai.agentModeEnabled) && (P.ai.experimentalMode === 'agent')));
+      if (_agentMode) return false;
+      var _aiV = P.ai && P.ai.memoryStewardEnabled, _cfV = P.conf && P.conf.memoryStewardEnabled;
+      if (_aiV !== undefined || _cfV !== undefined) _stewardUnset = false;
+      _stewardFlag = !!_aiV || !!_cfV;
+      if ((typeof global.agentFlagOn === 'function') && global.agentFlagOn('memoryStewardEnabled')) { _stewardFlag = true; _stewardUnset = false; }
+    } catch (_sfE) {}
+    if (_stewardUnset && TM.MemorySteward) _stewardFlag = true;  // T1393·缺省开（仅完全未设置时）
+    if (!_stewardFlag || !TM.MemorySteward) return false;
     var turn = GM.turn || 0;
     if (GM._memoryStewardDecision && GM._memoryStewardDecision.turn === turn) return GM._memoryStewardDecision.active;
     var streak = GM._memoryStewardFailStreak || 0;
