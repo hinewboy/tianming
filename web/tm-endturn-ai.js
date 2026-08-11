@@ -3604,7 +3604,7 @@
           var _sc1MemBudgetRaw = (P && P.conf && P.conf.memorySc1ContextTokenBudget != null)
             ? P.conf.memorySc1ContextTokenBudget
             : (P && P.conf && P.conf.memoryTurnContextTokenBudget);
-          var _sc1MemBudget = Number(_sc1MemBudgetRaw == null ? 1800 : _sc1MemBudgetRaw);
+          var _sc1MemBudget = Number(_sc1MemBudgetRaw == null ? 1500 : _sc1MemBudgetRaw);   // T1378: 1800→1500·焦点收集后信息密度高·直接省 17% 输入 token(P.conf.memorySc1ContextTokenBudget 可调)
           if (_sc1MemBudget > 0) {
             if (_sc1MemBudget < 300) _sc1MemBudget = 300;
             var _sc1MemCompileOpts = {

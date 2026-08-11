@@ -69,7 +69,7 @@ const envs = ME.collect(GM, { turn: 51 });
 const eraEnv = envs.filter(function(e) { return e && e.extra && e.extra.stream === 'eraRollup'; });
 assert(eraEnv.length >= 1, 'era rollup projected into v6 envelopes');
 const compiled = MCC.compileFromGM(GM, { turn: 51, audience: 'system', actorScope: 'system', intent: 'turn_inference', maxTokens: 6000 });
-assert(compiled.text.indexOf('编年大略') >= 0, 'era rollup injected via compileFromGM (sc1 main path), in chronology');
-assert(compiled.text.indexOf('<chronology') >= 0, 'chronology section present');
+assert(compiled.text.indexOf('编年大略') >= 0, 'era rollup injected via compileFromGM (sc1 main path)');
+assert(compiled.text.indexOf('<global-attention') >= 0, 'era rollup promoted to global-attention layer (T1378 两级注意力·不再落在 chronology 细目)');
 
 console.log('smoke-memory-era-rollup ok');

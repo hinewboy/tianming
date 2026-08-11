@@ -53,7 +53,7 @@ assert(envs.some((e) => e.type === 'character_memory' && String(e.safeBody || ''
 
 // 2) compileFromGM 注入到正确分区
 const compiled = MCC.compileFromGM(GM, { turn: 31, audience: 'system', actorScope: 'system', intent: 'turn_inference', maxTokens: 3000 });
-assert(compiled.text.includes('<chronology') && compiled.text.includes('天启五年纪要'), 'memory archive lands in chronology section');
+assert(compiled.text.includes('<global-attention') && compiled.text.includes('天启五年纪要'), 'memory archive lands in global-attention layer (T1378 两级注意力)');
 assert(compiled.text.includes('<recent-events') && compiled.text.includes('复核辽饷加派'), 'player decisions land in recent-events section');
 assert(compiled.text.includes('<character-memory') && compiled.text.includes('厘清辽饷亏空'), 'character arcs land in character-memory section');
 

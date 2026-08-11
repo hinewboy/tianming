@@ -207,7 +207,7 @@
     out.id = clean(out.id || out.key || out.uuid || ('hit-' + index), 120) || ('hit-' + index);
     out.source = sourceOf(out);
     out.type = clean(out.type || out.kind || '', 80);
-    out.text = safeTextOf(out, opts && opts.perHitMaxChars || 180);
+    out.text = safeTextOf(out, opts && opts.perHitMaxChars || 140);
     out.turn = Number(out.turn || 0);
     out.authority = clean(out.authority || '', 80);
     out.authorityRank = authorityRank(out);
@@ -252,11 +252,37 @@
 
   // T1377(2026-08-11): 属性瘦身——authority-rank(由 authority 派生)/lane(由 section 标签表达)删除，
   // source-refs/basis-refs 每侧≤2。信息量守恒(AI 语义不损)，字符量约 -40%(实测 191 hits 10350→~6500 字符)。
+  // T1378·注意力权重：_compilerScore 归一化到 0-99，AI 显式看到每条记忆的注意力分布
+  // （soft attention 提示：高 weight 优先采信/引用·低 weight 仅作背景）
+  function attentionWeight(hit) {
+    var s = Number(hit && hit._compilerScore) || 0;
+    return Math.max(1, Math.min(99, Math.round(s / 16)));
+  }
+
+  // T1378·全局注意力层：era/chronicle rollup（增量维护的全局大略·零每回合重算）提取到
+  // memory-context 顶部——模型先读全局（top-6 大略）再读局部细目（分层注意力·同 Transformer 的
+  // 全局 attention 头 + 局部 attention 头）。
+  function renderGlobalAttention(hits) {
+    if (!hits || !hits.length) return '';
+    var lines = hits.slice(0, 6).map(function(h) {
+      return '    <attention id="' + xml(h.id) + '" turn="' + xml(h.turn || 0) + '" weight="' + attentionWeight(h) + '">' + xml(clean(h.text, 100)) + '</attention>\n';
+    });
+    return '  <global-attention label="全局大略·先读此层·再读以下细目">\n' + lines.join('') + '  </global-attention>\n';
+  }
+
+  function isRollupHit(hit) {
+    if (!hit) return false;
+    if (hit.type === 'historiography_summary') return true;
+    var src = String(hit.source || '');
+    return src === 'memoryEraRollup' || src === 'memoryChronicleRollup';
+  }
+
   function renderHit(hit) {
     var attrs = [
       'id="' + xml(hit.id) + '"',
       'source="' + xml(hit.source) + '"',
-      'turn="' + xml(hit.turn || 0) + '"'
+      'turn="' + xml(hit.turn || 0) + '"',
+      'weight="' + attentionWeight(hit) + '"'
     ];
     if (hit.authority) attrs.push('authority="' + xml(hit.authority) + '"');
     if (hit.factStatus) attrs.push('fact-status="' + xml(hit.factStatus) + '"');
@@ -307,11 +333,14 @@
       .sort(sortHits);
     var sections = emptySections();
     normalized.forEach(function(hit) {
-      sections[sectionFor(hit)].push(hit);
+      sections[sectionFor(hit)].push(hit);   // sections 数据结构不变（诊断/契约依赖）
     });
-
-    var body = SECTION_ORDER.map(function(key) {
-      return renderSection(key, sections[key]);
+    // T1378·两级注意力：rollup(全局大略) 渲染层提取到顶部 <global-attention>·chronology 渲染时跳过避免重复
+    var rollupHits = sections.chronology.filter(isRollupHit);
+    var body = renderGlobalAttention(rollupHits) + SECTION_ORDER.map(function(key) {
+      var list = sections[key];
+      if (key === 'chronology' && rollupHits.length) list = list.filter(function(h) { return !isRollupHit(h); });
+      return renderSection(key, list);
     }).filter(Boolean).join('');
     var text = '<memory-context schema-version="memory-context/v0">\n' + body + '</memory-context>\n';
     var suppressed = arr(opts.suppressed).slice();
@@ -321,11 +350,18 @@
       var zones = [
         { id: 'memory-context-header', lane: 'L6_retrieved_evidence', text: '<memory-context schema-version="memory-context/v0">\n', mustKeep: true, order: 0, source: 'MemoryContextCompiler' }
       ];
+      // T1378·全局注意力层 zone（mustKeep·极小≤6条·先于一切细目）
+      var _gaText = renderGlobalAttention(rollupHits);
+      if (_gaText) {
+        zones.push({ id: 'memory-context-global-attention', lane: 'L1_world_truth', text: _gaText, mustKeep: true, order: 5, score: 99, source: 'MemoryContextCompiler', reason: 'global-attention' });
+      }
       var order = 10;
       // S4: 低权威/大体量 section 的 per-zone 上限(占预算比)，防其 balloon 挤占其余高价值区。
       var ZONE_CAP_FRAC = { warnings: 0.25 };
       SECTION_ORDER.forEach(function(key) {
-        var sectionText = renderSection(key, sections[key]);
+        var _secList = sections[key];
+        if (key === 'chronology' && rollupHits.length) _secList = _secList.filter(function(h) { return !isRollupHit(h); });
+        var sectionText = renderSection(key, _secList);
         if (!sectionText) return;
         var z = {
           id: 'memory-context-' + key,
@@ -372,7 +408,17 @@
     if (!ME || typeof ME.collect !== 'function') {
       return compileHits([], opts);
     }
-    var envelopes = ME.collect(GM || {}, { turn: opts.turn || (GM && GM.turn), sc1q: opts.sc1q });
+    var envelopes = ME.collect(GM || {}, {
+      turn: opts.turn || (GM && GM.turn),
+      sc1q: opts.sc1q,
+      // T1378·焦点驱动收集：本回合玩家操作/议题涉及的实体名 → collect 端过滤(世界硬事实全量·其余焦点/近3回合/保底)
+      focusTerms: (function() {
+        try {
+          if (MR && typeof MR.turnFocusTerms === 'function') return MR.turnFocusTerms(GM, { sc1q: opts.sc1q }) || [];
+        } catch (_ftE) {}
+        return [];
+      })()
+    });
     var hits = envelopes.map(function(env, index) {
       if (MR && typeof MR.hitFromEnvelope === 'function') return MR.hitFromEnvelope(env);
       return {

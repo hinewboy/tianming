@@ -1225,6 +1225,67 @@
     });
   }
 
+  // T1378(2026-08-11)·焦点驱动收集（参考游戏机制：战争迷雾 + RimWorld 有界记忆槽）：
+  // 玩家本回合操作/议题只涉及少量实体，全量投影 190+ 条再在编译端按预算裁剪 = 收集端就超集。
+  //   · 战争迷雾：只收集玩家视野内（本回合诏令/议题/对话涉及的实体）的记忆
+  //   · 有界记忆槽(RimWorld thought 槽)：每焦点实体最多 8 条(最新优先)·非焦点实体不占预算
+  //   · 世界硬事实(hard_state 人物状态 / active_law 活跃诏令承诺)全量保留——AI 必须知悉全部硬约束
+  //   · 近 1 回合记忆全保留（新事件必须注入·叙事承接另有 _recentNarrative 全文）；每 type 保底 1 条防整类滤空
+  //   · opts.focusTerms 为空 → 全量收集(零回归·compileFromGM 未传时行为与旧版逐字节一致)
+  var FOCUS_ENTITY_MAX = 6;   // RimWorld 式记忆槽上限/焦点实体（T1378: 8→6 再收紧）
+  var FRESH_TURNS = 1;        // 近 N 回合记忆全保留（叙事承接已有 _recentNarrative 最近3回合全文·这里收窄到1防双份）
+  function focusFilter(envelopes, focusTerms, turn) {
+    if (!focusTerms || !focusTerms.length) return envelopes;
+    var terms = {};
+    focusTerms.forEach(function(t) { if (t) terms[String(t).toLowerCase()] = true; });
+    function focusEntityOf(env) {
+      if (env && Array.isArray(env.entities)) {
+        for (var ei = 0; ei < env.entities.length; ei++) {
+          var ee = env.entities[ei];
+          if (ee && terms[String(ee).toLowerCase()]) return String(ee).toLowerCase();
+        }
+      }
+      return null;
+    }
+    function hitFocus(env) {
+      if (!env) return false;
+      if (focusEntityOf(env)) return true;
+      var hay = String(env.body || env.safeBody || '') + ' ' + String(env.id || '');
+      for (var fk in terms) { if (hay.indexOf(fk) >= 0) return true; }
+      return false;
+    }
+    var kept = [];
+    var focusHits = [];
+    var fresh = [];
+    var byType = {};
+    envelopes.forEach(function(env) {
+      if (!env) return;
+      var t = String(env.type || 'other');
+      if (t === 'hard_state' || t === 'active_law') { kept.push(env); return; }
+      if (hitFocus(env)) { focusHits.push(env); return; }
+      var age = (turn && env.turn) ? (turn - env.turn) : 99;
+      if (age >= 0 && age <= FRESH_TURNS) { fresh.push(env); return; }
+      (byType[t] = byType[t] || []).push(env);
+    });
+    // 有界记忆槽：焦点命中按 turn 新→旧排序·每实体最多 FOCUS_ENTITY_MAX 条
+    focusHits.sort(function(a, b) { return (b.turn || 0) - (a.turn || 0); });
+    var entCount = {};
+    focusHits.forEach(function(env) {
+      var ent = focusEntityOf(env);
+      if (ent) {
+        entCount[ent] = (entCount[ent] || 0) + 1;
+        if (entCount[ent] > FOCUS_ENTITY_MAX) return;
+      }
+      kept.push(env);
+    });
+    fresh.forEach(function(env) { kept.push(env); });
+    Object.keys(byType).forEach(function(t) {
+      byType[t].sort(function(a, b) { return (b.turn || 0) - (a.turn || 0); });
+      byType[t].slice(0, 1).forEach(function(env) { kept.push(env); });   // T1378: 保底 2→1 条(防整类滤空即可)
+    });
+    return kept;
+  }
+
   function collect(GM, opts) {
     opts = opts || {};
     var out = [];
@@ -1251,6 +1312,10 @@
     pushCharacterArcEnvelopes(out, GM, turn);
     pushAcceptedMemoryEnvelopes(out, GM, turn);
     pushCharacterStanceEnvelopes(out, GM, turn);
+    // T1378: 焦点驱动收集——opts.focusTerms 非空时过滤（compileFromGM 传入·其余调用零回归）
+    if (Array.isArray(opts.focusTerms) && opts.focusTerms.length) {
+      out = focusFilter(out, opts.focusTerms, turn);
+    }
     return dedupe(out);
   }
 
