@@ -1347,7 +1347,7 @@ async function generateDianshiResults() {
   if (!exam) throw new Error('无当前科举');
   if (!P.ai || !P.ai.key) throw new Error('未配置 AI Key');
 
-  var _topCount = Math.min(exam.dianshiCandidates ? exam.dianshiCandidates.length : 20, 20);
+  var _topCount = Math.min(exam.dianshiCandidates ? exam.dianshiCandidates.length : 20, 20);  // 20 candidates fixed (user decision)
   var _subjects = P.keju.examSubjects || '';
   var _rules = P.keju.specialRules || '';
   var _dyn = P.dynasty || P.era || (typeof scriptData !== 'undefined' && scriptData && scriptData.dynasty) || '';
@@ -1403,13 +1403,13 @@ async function generateDianshiResults() {
     + _ctxHeader
     + '\n\u3010\u8981\u6C42\u3011\n'
     + '1. \u5171 ' + _topCount + ' \u540D\u8003\u751F\u3002\u7B2C1=\u72B6\u5143\uFF0C2=\u699C\u773C\uFF0C3=\u63A2\u82B1\u3002\n'
-    + '2. \u6BCF\u540D\uFF1Aname/age(20-55)/origin/ethnicity/class(\u58EB\u65CF|\u5BD2\u95E8|\u5546\u8D3E|\u5176\u4ED6)/party(\u53EF\u7A7A)/style(\u7B56\u8BBA/\u8BE6\u7ECF/\u660E\u7406/\u5F53\u4EE3)/personalityHint(20\u5B57)/score(0-100)/isHistorical/shiliao(\u5386\u53F2\u4EBA\u7269\u5FC5\u586B\u539F\u6587\u6458\u5F15)/nativeEra/timeAnomaly\n'
+    + '2. \u6BCF\u540D\uFF1Aname/age(20-55)/origin/ethnicity/class(\u58EB\u65CF|\u5BD2\u95E8|\u5546\u8D3E|\u5176\u4ED6)/party(\u53EF\u7A7A)/style(\u7B56\u8BBA/\u8BE6\u7ECF/\u660E\u7406/\u5F53\u4EE3)/personalityHint(20\u5B57)/score(0-100)/evaluation(\u8003\u5B98\u7B80\u8BC4 30-50 \u5B57)/isHistorical/shiliao(\u5386\u53F2\u4EBA\u7269\u5FC5\u586B\u539F\u6587\u6458\u5F15)/nativeEra/timeAnomaly\n'
     + '3. \u59D3\u540D\u7C4D\u8D2F\u9700\u7B26\u5408\u8BE5\u671D\u4EE3\u7279\u5F81\u3002\n\n'
     + '\u8FD4\u56DE JSON \u6570\u7EC4\uFF0C\u6309 rank 1..' + _topCount + ' \u6392\u5E8F\uFF0C\u53EA\u8F93\u51FA JSON\u3002';
-  var _metaTok = (P.conf && P.conf.maxOutputTokens > 0) ? P.conf.maxOutputTokens : 6000;
+  var _metaTok = (P.conf && P.conf.maxOutputTokens > 0) ? P.conf.maxOutputTokens : 4000;  // T1389: 6000->4000
   // 时空约束·扫描殿试题面涉议人物·考生档案(JSON档案·clauseOnly)（typeof守卫·防加载序）
   if (typeof _buildTemporalConstraint === 'function') { try { var _tcMMeta = (typeof _tcScanMentionedNames === 'function') ? _tcScanMentionedNames(((exam && exam.playerQuestion) || ''), (exam && exam.chiefExaminer ? [exam.chiefExaminer] : []), 10) : []; metaPrompt += _buildTemporalConstraint(null, { clauseOnly: true, mentionedNames: _tcMMeta }); } catch (_tcE) {} }
-  var metaRaw = await callAISmart(metaPrompt, Math.min(_metaTok, 6000), { maxRetries: 2 });
+  var metaRaw = await callAISmart(metaPrompt, Math.min(_metaTok, 4000), { maxRetries: 1 });  // T1389: retries 2->1
   var candidates = _parseJsonArr(metaRaw);
   if (!Array.isArray(candidates) || candidates.length < 3) {
     throw new Error('AI meta \u8FD4\u56DE\u65E0\u6548·\u8003\u751F\u6863\u6848\u751F\u6210\u5931\u8D25');
@@ -1438,9 +1438,10 @@ async function generateDianshiResults() {
   if (candidates.length < 3) throw new Error('AI 返回有效考生不足 3 名（剔除已任官员后）');
 
   // ═══ Step 2: 分批生成 fullAnswer（4 批 × 5 人 = 20） ═══
+  // T1389: batch fullAnswer generation SKIPPED (biggest cost ~12-16K tokens output; rank from meta.score; placeholder fallback exists)
   var BATCH_SIZE = 5;
   var totalBatches = Math.ceil(candidates.length / BATCH_SIZE);
-  for (var b = 0; b < totalBatches; b++) {
+  for (var b = 0; b < 0; b++) {
     var batch = candidates.slice(b*BATCH_SIZE, (b+1)*BATCH_SIZE);
     var batchPct = 25 + Math.round(((b+0.5)/totalBatches) * 50);
     if (typeof _kejuUpdateDianshiProgress === 'function') {
@@ -1544,11 +1545,11 @@ async function _kejuGenChiefExaminerComments(exam, candidates) {
     + '2. \u6279\u8BED\u5FC5\u987B\u53CD\u6620\u4E3B\u8003\u672C\u4EBA\u7684\u515A\u6D3E\u4E0E\u6027\u683C\uFF08\u5982\u4E1C\u6797\u6E05\u6D41\u591A\u8D5E\u8BBA\u6587\u00B7\u9605\u515A\u8D2C\u6DF1\u6587\u00B7\u6B66\u5C06\u51FA\u8EAB\u4E0D\u61C2\u6587\u4F46\u79F0\u8D5E\u5FD7\u8282\uFF09\n'
     + '3. \u6279\u8BED\u53EF\u5BBD\u53EF\u4E25\u00B7\u4F46\u5FC5\u987B\u5177\u4F53\u6307\u51FA\u4F18\u70B9\u6216\u7F3A\u5931\n'
     + '\u8FD4\u56DE JSON\uFF1A[{"rank":1,"name":"...","chiefExaminerComment":"..."}, ...]\u00B7\u53EA\u8F93\u51FA JSON\u3002';
-  var _tokC = (P.conf && P.conf.maxOutputTokens > 0) ? P.conf.maxOutputTokens : 8000;
-  _tokC = Math.min(_tokC, 8000);
+  var _tokC = (P.conf && P.conf.maxOutputTokens > 0) ? P.conf.maxOutputTokens : 4000;
+  _tokC = Math.min(_tokC, 4000);  // T1389: 8000->4000
   // 时空约束·扫描殿试题面涉议人物·主考逐卷批语(JSON·clauseOnly)（typeof守卫·防加载序）
   if (typeof _buildTemporalConstraint === 'function') { try { var _tcMComments = (typeof _tcScanMentionedNames === 'function') ? _tcScanMentionedNames(((exam && exam.playerQuestion) || ''), (exam && exam.chiefExaminer ? [exam.chiefExaminer] : []), 10) : []; prompt += _buildTemporalConstraint(null, { clauseOnly: true, mentionedNames: _tcMComments }); } catch (_tcE) {} }
-  var rawC = await callAISmart(prompt, _tokC, { maxRetries: 2 });
+  var rawC = await callAISmart(prompt, _tokC, { maxRetries: 1 });  // T1389: retries 2->1
   var arr = _parseJsonArr(rawC);
   if (!Array.isArray(arr)) return;
   arr.forEach(function(r){
@@ -1607,7 +1608,7 @@ async function _kejuGenExaminerSuggestions(exam) {
     try {
       // 时空约束·扫描殿试题面涉议人物·考官排序建议(JSON·clauseOnly)（typeof守卫·防加载序）
       if (typeof _buildTemporalConstraint === 'function') { try { var _tcMSug = (typeof _tcScanMentionedNames === 'function') ? _tcScanMentionedNames(((exam && exam.playerQuestion) || ''), (ex && ex.name ? [ex.name] : []), 10) : []; prompt += _buildTemporalConstraint(null, { clauseOnly: true, mentionedNames: _tcMSug }); } catch (_tcE) {} }
-      var raw = await callAISmart(prompt, 3000, { maxRetries: 1 });
+      var raw = await callAISmart(prompt, 1500, { maxRetries: 1 });  // T1389: 3000->1500
       var parsed = (typeof extractJSON === 'function') ? extractJSON(raw) : null;
       if (!parsed) { var m = raw.match(/\[[\s\S]*\]/); if (m) try { parsed = JSON.parse(m[0]); } catch(_){} }
       if (Array.isArray(parsed)) {
