@@ -2709,6 +2709,13 @@ function calculateProvinceEconomy() {
     var corruptionFactor = 1 - (ps.corruption || 0) / 100;
     var baseMonthlyMoney = (ps.population || 0) * (ps.incomeRate || 0) * corruptionFactor;
 
+    // 地方官系统对接(2026-08-12·信息孤岛修复)：省巡抚任命后作为 governor·税收加成生效
+    try {
+      if (!ps.governor && typeof window !== 'undefined' && window.TMLocalOffice) {
+        var _loGov = window.TMLocalOffice.provinceGovernorInfo(name);
+        if (_loGov && _loGov.holder) ps.governor = _loGov.holder;
+      }
+    } catch (_) {}
     // governor 能力加成
     if (ps.governor) {
       var gov = (typeof findCharByName === 'function') ? findCharByName(ps.governor) : null;

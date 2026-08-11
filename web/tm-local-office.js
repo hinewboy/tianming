@@ -467,6 +467,30 @@
     return hit;
   }
 
+  // ── 民变治理(2026-08-12·信息孤岛修复·确定性护栏)：
+  //    每回合 ongoing 民变·所在省巡抚能力>60 → 15% 概率降级·降到底后 30% 概率被平定
+  function _revoltGovernance() {
+    try {
+      if (typeof GM === 'undefined' || !GM || !GM.minxin || !Array.isArray(GM.minxin.revolts)) return;
+      GM.minxin.revolts.forEach(function (rv) {
+        if (!rv || rv.status !== 'ongoing') return;
+        var regName = String(rv.region || '');
+        if (!regName) return;
+        var info = _provinceGovernorInfo(regName);
+        if (!info || !info.holder || info.vacant) return;
+        var ab = info.ability || 50;
+        if (ab > 60 && Math.random() < 0.15) {
+          rv.level = Math.max(1, (rv.level || 1) - 1);
+          if (rv.level <= 1 && Math.random() < 0.3) {
+            rv.status = 'quelled';
+            rv.quelledBy = info.holder;
+            if (typeof addEB === 'function') addEB('民变', regName + '民变·经巡抚' + info.holder + '抚定');
+          }
+        }
+      });
+    } catch (_) {}
+  }
+
   var api = {
     ensure: _ensure,
     seedExisting: _seedExisting,
@@ -485,6 +509,7 @@
   // 结算注册：地方官考绩（perturn·在 office_mourning(45) 前·考绩供京察消费）
   if (global.SettlementPipeline && typeof global.SettlementPipeline.register === 'function') {
     global.SettlementPipeline.register('localOfficeReview', '地方官考绩', function () { _annualReview(); }, 44, 'perturn');
+    global.SettlementPipeline.register('localOfficeRevolt', '地方官治乱', function () { _revoltGovernance(); }, 43, 'perturn');
   }
 
   // ── 触发注入：渲染官职树前 ensure+seed（包装 renderOfficeTree·加载先后都覆盖） ──
