@@ -199,6 +199,7 @@ Windows 下也可直接使用外层目录的 `启动天命.bat`（正式启动�
 | v1376 | 2026-08-11 | 府名**跨省全局防碰撞**（治跨省重合/堆叠）：`tm-map-label-collide.js` 升级为全局贪心布局（8 方向螺旋散开·宁重叠不隐藏）+ `phase8-formal-map.js` 集成（全局一次布局替代同省内两两贪心） |
 | v1377 | 2026-08-11 | **记忆注入压缩 + 过场提速**：①记忆 token **-41%**（实测 191 hits 10350→5471 字符·tokenEstimate 3085→1836 落进 1800 预算）——XML 属性瘦身（删 authority-rank/lane 冗余派生·visibility 非默认才输出·source-refs/basis-refs≤2）+ **hard_state 人物状态 45 条合并为一条 `<hard-state>` 紧凑列表**（信息量守恒·sections 结构不变·新回归 smoke-memory-compact-render.js）；②过场提速——进度蠕动 400ms/+0.2~2.0% → 250ms/+0.5~4.5%（爬速 ~3.7x）·idle bump 8s/2s/+0.5% → 4s/1s/+1.0%（治长 AI 调用间隙卡住）·场景淡化 1400→900/标题切换 760→500/落印 940→520/落幕 650→350/finish 680→360/首帧兜底 1200→800（收尾链省 ~1s/回合）·**systems 组 9 拍 pct 92~94.9 拉宽到 92~97**（结算阶段进度条持续前进·治"卡在 92%"感知·verify-endturn-progress 契约同步） |
 | v1378 | 2026-08-11 | **记忆注意力机制 + 焦点驱动收集**（参考游戏机制：战争迷雾 + RimWorld 有界记忆槽 + AI 两级注意力）：①**焦点收集**——turnFocusTerms 实体名在 collect 端过滤（收集 209→56 hits **-73%**·hard_state/active_law 硬约束全量·近 1 回合 fresh + 每 type 保底 1 防滤空·focusTerms 空=全量零回归）；②**有界记忆槽**——每焦点实体最多 6 条（最新优先）；③**两级注意力**——增量维护的 rollup（编年大略·**零每回合重算**）提取为 `<global-attention>` 顶部层（模型先读全局再读细目）+ 每条 `<memory weight=NN>` 显式注意力权重（soft attention）；④perHitMaxChars 180→**140**（防尾部 resolution 被截丢）+ **SC1_PRE_CONTEXT 预算 1800→1500**（焦点后信息密度高·直接省 17% 输入 token）；v1377+v1378 累计注入 token **-41% → ~-55%**；新回归 smoke-memory-focus-collect.js·契约同步 era-rollup/legacy-source-migration |
+| v1379 | 2026-08-11 | **朝会议政发言收敛**（用户反馈：群臣啰嗦说一大堆 + 有的发言没字幕只有输入框）：①啰嗦根因 = cy 字数额 [120,250] + max_tokens ≈2600（×3 防截断）→ AI 写超——cy 档收敛 **[120,250]→[60,120]**（concise 实际 36-72 字·奏对短句犀利）；②保险丝 = 发言**硬截断 150 字三处**（流式 onChunk / 最终 line / salvage·AI 不遵守字数也写不超）；③没字幕根因 = 流式发言无超时·AI 卡住无限等 '…' 空泡——**Promise.race 15s 超时**兜底（超时走回退·已流式吐出的保留·否则短句兜底）；新回归 smoke-chaoyi-speech-concision.js |
 
 **关键教训（接手必读）**：
 - **发版只走 `scripts/release.js`**（prepare/publish 两阶段），版本号 6 处同盖；OTA 必须自带全部 `web/assets`（~800MB+），绝不收敛成"只发跟踪码"（1.3.4.9 丢图事故）。红线全文见 `AGENTS.md`。
@@ -211,6 +212,7 @@ Windows 下也可直接使用外层目录的 `启动天命.bat`（正式启动�
 - **记忆注入压缩（v1377）**：v6 记忆注入的 XML 属性是最大冗余（45 条 hard-char 每条属性 ~150 字符 vs 正文 ~10 字）——同构短条目合并渲染（`<hard-state>` 列表）+ 删冗余派生属性（authority-rank/lane）可砍 ~40% 且信息量守恒；packZones 的 mustKeep（coreFacts）会顶穿预算，先瘦身 mustKeep 区再谈预算。改渲染格式前先查 smoke 契约（sections 结构有断言、渲染文本无）。
 - **焦点过滤兜底三件套（v1378）**：硬事实（人物状态/活跃诏令）全量 + 近 N 回合 fresh + 每 type 保底——**三者缺一会滤掉刚结算的重要记忆**（sc1-governance-markers 踩过）；**perHitMaxChars 截断会丢尾部关键信息**（resolution 在 100 字符处被切·180→100 时 smoke 抓出·140 是折中）；**sections 数据结构是公共契约**（诊断面板/多个 smoke 依赖）——两级注意力只能动渲染层，不能动 sections 数组。
 - **过场感知（v1377）**：进度条"卡住"= 蠕动被拍 pct ceiling 死钳（systems 组 9 拍挤在 2.9% 区间）——**拉宽 pct 分布 + 加快 idle bump 比单纯加速动画更治本**；改 BEATS pct 前先查 `verify-endturn-progress.js` 契约（硬编码多个表值）。
+- **朝会发言（v1379）**：字数收敛要改 `_charRangeDefaults.cy`（`tm-ai-infra-model-detect.js`·问对 wd/奏疏不动）；**光改字数不够**——max_tokens 翻 3 倍（治截断的 owner 决策·别动）给了 AI 写超的空间，须加**显示层硬截断**（流式 onChunk/最终 line 双处 slice）当保险丝；流式发言**必须加超时**（Promise.race 15s）——无超时 = AI 卡住时无限 '…' 空泡 = 玩家看到"没字幕"。
 - **进度条 idle bump**：拍间隙 >8s ceiling 每 2s +0.5%；**拍中只断链、回合结束/新拍才重置 ceiling**（v1359/v1360 两轮才修干净）。
 
 ---
