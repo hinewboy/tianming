@@ -2299,7 +2299,10 @@
       });
       html += '</div>';
     }
-    cats.forEach(function(cat, i){
+    // T1380: 颁行后五类草拟已清空——隐藏空分类行+文风栏·中栏主体 = 已颁行卡片
+    //   （治「政/军/外分类挤在一起」+「不知道诏书有没有发下去」：颁行后一眼只见朱印卡片）
+    if (!_promThisTurn.length) {
+      cats.forEach(function(cat, i){
       var v0 = legacyEdictDraftValue(cat.id, cat.keys);
       var inked = String(v0 || '').trim() ? ' inked' : '';
       html += '<div class="erow" data-cat="' + attr(cat.cat) + '" style="animation-delay:' + (0.06 * (i + 1)).toFixed(2) + 's">';
@@ -2308,10 +2311,11 @@
       html += '<textarea id="' + attr(cat.id) + '" class="cat-field" data-cat="' + attr(cat.cat) + '" data-desk-edict-cat="' + attr(cat.keys[0]) + '" data-label="' + attr(cat.cat) + '" placeholder="' + attr(cat.placeholder) + '" oninput="var s=window.TM_PHASE8_FORMAL||(window.TM_PHASE8_FORMAL={});var d=s.edictDrafts||(s.edictDrafts={});d[&quot;' + attr(cat.keys[0]) + '&quot;]=this.value;if(window._edictLiveForecast)window._edictLiveForecast(&quot;' + attr(cat.id) + '&quot;);var er=this.closest(&quot;.erow&quot;);if(er){var sl=er.querySelector(&quot;.cell-seal&quot;);if(sl)sl.classList.toggle(&quot;inked&quot;,!!this.value.trim());}">' + esc(v0) + '</textarea>';
       html += '<div id="' + attr(cat.id) + '-forecast" class="ed-forecast" style="display:none;"></div>';
       html += '</div></div>';
-    });
-    // 文风选择 (保留 #edict-polish-style 供 _polishEdicts 读) + 润色结果容器
-    html += '<div class="ed-polish-bar"><span class="lbl">文 风</span>';
-    html += '<select id="edict-polish-style"><option value="elegant">典雅骈文</option><option value="concise">简洁明快</option><option value="ornate">华丽文藻</option><option value="plain">白话文言</option></select></div>';
+      });
+      // 文风选择 (保留 #edict-polish-style 供 _polishEdicts 读) + 润色结果容器
+      html += '<div class="ed-polish-bar"><span class="lbl">文 风</span>';
+      html += '<select id="edict-polish-style"><option value="elegant">典雅骈文</option><option value="concise">简洁明快</option><option value="ornate">华丽文藻</option><option value="plain">白话文言</option></select></div>';
+    }
     html += '</div></div>';
     // 主角行止 tab
     html += '<div class="ed-tab-panel xinglu">';
