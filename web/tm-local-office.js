@@ -80,7 +80,14 @@
     var map = _map();
     if (!map || !Array.isArray(map.regions) || !map.regions.length) return false;
 
-    var root = { name: '地方官', _localOfficeRoot: true, subs: [] };
+    // 找原有「地方督抚」部门（剧本已有 辽东经略/三边总督/各省巡抚/大名府知府）——不新建根·只扩展
+    var dufu = null;
+    (GM.officeTree || []).forEach(function (d) { if (d && d.name === '地方督抚') dufu = d; });
+    if (!dufu) { dufu = { name: '地方督抚', _localOfficeRoot: true, positions: [], subs: [] }; GM.officeTree.push(dufu); }
+    if (!Array.isArray(dufu.positions)) dufu.positions = [];
+    if (!Array.isArray(dufu.subs)) dufu.subs = [];
+    dufu._localOfficeRoot = true;   // 标记：本模块负责的地方官树
+
     map.regions.forEach(function (r) {
       if (!r || !r.name) return;
       var nm = String(r.name);
@@ -95,33 +102,35 @@
       if (!hasPrefs) return;
 
       var provName = nm.replace(/布政使司$/, '').replace(/府$/, '').replace(/（[^）]*）$/g, '').replace(/\([^)]*\)$/g, '');   // 辽东（明·关宁东江）→辽东·应天府→应天
-      var provNode = {
-        name: nm,
-        _regionRef: r.id || r.name,
-        _localOfficeProvince: true,
-        positions: [],
-        subs: []
-      };
-      // 省级职位（明制·2026-08-12 用户确认只加巡抚/知府）：巡抚必设·用历史专名（顺天/应天/辽东巡抚·匹配剧本已有角色）
-      // 注：不设布政使/按察使——原有官职体系不动·仅新增巡抚与知府两级
+      // 巡抚：历史专名（顺天/应天/辽东巡抚·匹配剧本已有角色）·查重后追加到地方督抚 positions（原有 6 巡抚不重复）
       var xunfuName = _XUNFU_NAME[provName] || _XUNFU_NAME[nm] || (provName + '巡抚');
-      provNode.positions.push(_mkPos(xunfuName, 'province', r.id || r.name, 'xunfu'));
-      // 府级：children 即府级数据（数据层级保证从属关系·不会挂错省）
+      var xunfuExists = dufu.positions.some(function (p) { return p && p.name && p.name.indexOf(xunfuName) >= 0; });
+      if (!xunfuExists) {
+        dufu.positions.push(_mkPos(xunfuName, 'province', r.id || r.name, 'xunfu'));
+      }
+      // 知府：每省一个子部门（subs·树可折叠·不刷屏）·知府查重需全局（含部门级原有职位如「大名府知府」）
+      var provSub = null;
+      (dufu.subs || []).forEach(function (s) { if (s && s.name === nm) provSub = s; });
+      if (!provSub) {
+        provSub = { name: nm, _regionRef: r.id || r.name, _localOfficeProvince: true, positions: [], subs: [] };
+        dufu.subs.push(provSub);
+      }
+      // 全局已存在职位名集合（部门级 positions + 所有省子部门 positions）·防重复
+      var allPosNames = {};
+      (dufu.positions || []).forEach(function (q) { if (q && q.name) allPosNames[q.name] = 1; });
+      (dufu.subs || []).forEach(function (s) {
+        if (!s) return;
+        (s.positions || []).forEach(function (q) { if (q && q.name) allPosNames[q.name] = 1; });
+      });
       var prefs = (r.data && Array.isArray(r.data.children)) ? r.data.children : (r.prefectures || []);
       prefs.forEach(function (p) {
         if (!p || !p.name) return;
-        provNode.subs.push({
-          name: p.name,
-          _prefRef: p.id || p.name,
-          _localOfficePref: true,
-          positions: [_mkPos(p.name + '知府', 'prefecture', p.id || p.name, 'zhifu')]
-        });
+        var zhifuName = p.name + '知府';
+        if (allPosNames[zhifuName]) return;
+        allPosNames[zhifuName] = 1;
+        provSub.positions.push(_mkPos(zhifuName, 'prefecture', p.id || p.name, 'zhifu'));
       });
-      root.subs.push(provNode);
     });
-
-    if (!root.subs.length) return false;
-    GM.officeTree.push(root);
     GM._localOfficeInjected = true;
     return true;
   }
@@ -135,20 +144,26 @@
     if (typeof global._offAppointPerson !== 'function') return 0;
     // 遍历地方官职位·按省名匹配角色 officialTitle（如「应天巡抚」匹配省名含应天 或 官职名 == 职位名）
     (GM.officeTree || []).forEach(function (dept) {
-      if (!dept || !dept._localOfficeRoot || !Array.isArray(dept.subs)) return;
-      dept.subs.forEach(function (prov) {
+      if (!dept || !dept._localOfficeRoot) return;
+      var allPos = [];
+      // 部门级 positions = 省巡抚
+      (dept.positions || []).forEach(function (p) { if (p) allPos.push(p); });
+      // subs = 省子部门（知府们）
+      (dept.subs || []).forEach(function (prov) {
         if (!prov) return;
-        var allPos = [];
         (prov.positions || []).forEach(function (p) { if (p) allPos.push(p); });
         (prov.subs || []).forEach(function (pref) {
           if (!pref) return;
           (pref.positions || []).forEach(function (p) { if (p) allPos.push(p); });
         });
-        allPos.forEach(function (pos) {
+      });
+      allPos.forEach(function (pos) {
           if (!pos || !pos._localOfficePos) return;
           var posName = pos.name || '';
-          // 已有人（存档恢复）跳过
-          if (Array.isArray(pos.actualHolders) && pos.actualHolders.some(function (h) { return h && h.name && h.generated !== false; })) return;
+          // 已有人（存档恢复·兼容新老模型）跳过
+          var _occupied = (Array.isArray(pos.actualHolders) && pos.actualHolders.some(function (h) { return h && h.name && h.generated !== false; })) ||
+                          (typeof pos.holder === 'string' && !!pos.holder && pos.holder !== '空');
+          if (_occupied) return;
           var hit = null;
           for (var i = 0; i < GM.chars.length; i++) {
             var c = GM.chars[i];
@@ -165,16 +180,18 @@
           }
         });
       });
-    });
     return filled;
   }
 
-  // ── 遍历所有地方官职位（省+府）·回调 (pos, provNode, prefNode|null) ──
+  // ── 遍历所有地方官职位（省巡抚+府知府·含原有地方督抚职位）·回调 (pos, provNode, prefNode|null) ──
   function _walkLocalPositions(fn) {
     if (typeof GM === 'undefined' || !GM || !Array.isArray(GM.officeTree)) return;
     (GM.officeTree || []).forEach(function (dept) {
-      if (!dept || !dept._localOfficeRoot || !Array.isArray(dept.subs)) return;
-      dept.subs.forEach(function (prov) {
+      if (!dept || !dept._localOfficeRoot) return;
+      // 部门级 positions = 省巡抚（含原有地方督抚职位：辽东经略/三边总督/巡抚/大名府知府·都算地方官）
+      (dept.positions || []).forEach(function (pos) { if (pos) fn(pos, dept, null); });
+      // subs = 省子部门（知府们）
+      (dept.subs || []).forEach(function (prov) {
         if (!prov) return;
         (prov.positions || []).forEach(function (pos) { if (pos && pos._localOfficePos) fn(pos, prov, null); });
         (prov.subs || []).forEach(function (pref) {
@@ -236,13 +253,15 @@
     return m;
   }
 
-  // ── 职位 holder 角色对象（在任者） ──
+  // ── 职位 holder 角色对象（在任者）·兼容新老模型（新 actualHolders / 老 holder 字符串） ──
   function _holderChar(pos) {
     if (typeof GM === 'undefined' || !GM || !Array.isArray(GM.chars)) return null;
     var named = null;
     (pos.actualHolders || []).forEach(function (h) {
       if (h && h.name && h.generated !== false && !named) named = h.name;
     });
+    // 老模型兜底：holder 为字符串（剧本原有职位如 浙江巡抚 holder:'潘汝桢'）
+    if (!named && pos.holder && typeof pos.holder === 'string' && pos.holder) named = pos.holder;
     if (!named) return null;
     for (var i = 0; i < GM.chars.length; i++) {
       var c = GM.chars[i];
@@ -339,12 +358,14 @@
     return Math.max(0.85, Math.min(1.15, 1.0 + (ab - 50) / 340));
   }
 
-  // 兼容：按省名直接找该省巡抚治理系数（AI prompt/面板用）
+  // 兼容：按省名直接找该省巡抚治理系数（AI prompt/面板用）·含原有地方督抚职位
   function _provinceGovernorInfo(provName) {
     var out = null;
     _walkLocalPositions(function (pos) {
-      if (out || pos._localLevel !== 'province' || pos._localKind !== 'xunfu') return;
-      var prov = pos.name.replace(/(巡抚|布政使|按察使)$/, '');
+      if (out || pos._localLevel === 'prefecture') return;
+      if (pos._localKind && pos._localKind !== 'xunfu') return;
+      var prov = String(pos.name || '').replace(/(巡抚|布政使|按察使|经略|总督)(（[^）]*）)?$/, '').replace(/[（(].*[）)]$/g, '');
+      if (!prov) return;
       if (provName.indexOf(prov) >= 0 || prov.indexOf(provName) >= 0) {
         var c = _holderChar(pos);
         out = { posName: pos.name, holder: c ? c.name : '', vacant: !c, ability: c ? Math.round(_govAbility(c)) : null };
@@ -356,18 +377,29 @@
   // 面板/地图兜底：按辖区 ref + 级别找地方官职（省→巡抚·府→知府）·返回 {posName, holder, vacant, ability}
   function _localGovernorFor(ref, level) {
     var hit = null;
+    var _ref = String(ref);
+    if (_ref.indexOf('pref-') === 0) _ref = _ref.substring(5);   // 府面板 adminBinding 带 pref- 前缀
+    // region id → 省名（供原有职位按名称匹配：'ming-03' → '浙江'）
+    var regName = '';
+    try {
+      var _m = _map();
+      if (_m) { var _rg = _findRegion(_m, _ref); if (_rg) regName = String(_rg.name || ''); }
+    } catch (_) {}
     _walkLocalPositions(function (pos) {
       if (hit) return;
       var wantLevel = (level === 'prefecture') ? 'prefecture' : 'province';
-      if (pos._localLevel !== wantLevel) return;
-      var _ref = String(ref);
-      if (_ref.indexOf('pref-') === 0) _ref = _ref.substring(5);   // 府面板 adminBinding 带 pref- 前缀
-      if (String(pos._localRef) !== _ref) return;
+      var plv = pos._localLevel || 'province';   // 原有地方督抚职位（无标记）按省级
+      if (plv !== wantLevel) return;
+      // ref 匹配：注入职位用 _localRef 精确；原有职位（无 _localRef）按职位名含省名（「浙江巡抚」含「浙江」）
+      var posRef = pos._localRef ? String(pos._localRef) : String(pos.name || '');
+      var refMatch = (String(posRef) === _ref) ||
+                     (pos._localRef === undefined && regName && posRef.indexOf(regName) >= 0);
+      if (!refMatch) return;
       // 省取巡抚·府取知府
-      if (wantLevel === 'province' && pos._localKind !== 'xunfu') return;
+      if (wantLevel === 'province' && !/巡抚|经略|总督/.test(pos.name || '') && pos._localKind !== 'xunfu') return;
       if (wantLevel === 'prefecture' && pos._localKind !== 'zhifu') return;
       var c = _holderChar(pos);
-      hit = { posName: pos.name, holder: c ? c.name : '', vacant: !c, ability: c ? Math.round(_govAbility(c)) : null, kind: pos._localKind };
+      hit = { posName: pos.name, holder: c ? c.name : '', vacant: !c, ability: c ? Math.round(_govAbility(c)) : null, kind: pos._localKind || 'xunfu' };
     });
     return hit;
   }
