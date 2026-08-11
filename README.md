@@ -198,6 +198,7 @@ Windows 下也可直接使用外层目录的 `启动天命.bat`（正式启动�
 | v1375 | 2026-08-11 | 修复府名跑海里：源头验证 CHGIS 源数据 8/8 准确（顺天≈北京/苏州≈苏州/广州≈广州·偏差<0.7°）+映射公式抽查无错 → 真凶 = **v1374 的防碰撞下移（冲突 +16px）在省约束之后执行**·下移把 label 移出省 polygon；修复 = **先防碰撞散开、后统一约束进省**（拉回·接受个别重叠）；harness 实测府名在省内 183→329/359（91.7%）·沿海省（广州/潮州/琼州等）全回陆地·剩余省外 30 个为海外飞地/边疆土司（北海道/九州/吕宋·非海里） |
 | v1376 | 2026-08-11 | 府名**跨省全局防碰撞**（治跨省重合/堆叠）：`tm-map-label-collide.js` 升级为全局贪心布局（8 方向螺旋散开·宁重叠不隐藏）+ `phase8-formal-map.js` 集成（全局一次布局替代同省内两两贪心） |
 | v1377 | 2026-08-11 | **记忆注入压缩 + 过场提速**：①记忆 token **-41%**（实测 191 hits 10350→5471 字符·tokenEstimate 3085→1836 落进 1800 预算）——XML 属性瘦身（删 authority-rank/lane 冗余派生·visibility 非默认才输出·source-refs/basis-refs≤2）+ **hard_state 人物状态 45 条合并为一条 `<hard-state>` 紧凑列表**（信息量守恒·sections 结构不变·新回归 smoke-memory-compact-render.js）；②过场提速——进度蠕动 400ms/+0.2~2.0% → 250ms/+0.5~4.5%（爬速 ~3.7x）·idle bump 8s/2s/+0.5% → 4s/1s/+1.0%（治长 AI 调用间隙卡住）·场景淡化 1400→900/标题切换 760→500/落印 940→520/落幕 650→350/finish 680→360/首帧兜底 1200→800（收尾链省 ~1s/回合）·**systems 组 9 拍 pct 92~94.9 拉宽到 92~97**（结算阶段进度条持续前进·治"卡在 92%"感知·verify-endturn-progress 契约同步） |
+| v1378 | 2026-08-11 | **记忆注意力机制 + 焦点驱动收集**（参考游戏机制：战争迷雾 + RimWorld 有界记忆槽 + AI 两级注意力）：①**焦点收集**——turnFocusTerms 实体名在 collect 端过滤（收集 209→56 hits **-73%**·hard_state/active_law 硬约束全量·近 1 回合 fresh + 每 type 保底 1 防滤空·focusTerms 空=全量零回归）；②**有界记忆槽**——每焦点实体最多 6 条（最新优先）；③**两级注意力**——增量维护的 rollup（编年大略·**零每回合重算**）提取为 `<global-attention>` 顶部层（模型先读全局再读细目）+ 每条 `<memory weight=NN>` 显式注意力权重（soft attention）；④perHitMaxChars 180→**140**（防尾部 resolution 被截丢）+ **SC1_PRE_CONTEXT 预算 1800→1500**（焦点后信息密度高·直接省 17% 输入 token）；v1377+v1378 累计注入 token **-41% → ~-55%**；新回归 smoke-memory-focus-collect.js·契约同步 era-rollup/legacy-source-migration |
 
 **关键教训（接手必读）**：
 - **发版只走 `scripts/release.js`**（prepare/publish 两阶段），版本号 6 处同盖；OTA 必须自带全部 `web/assets`（~800MB+），绝不收敛成"只发跟踪码"（1.3.4.9 丢图事故）。红线全文见 `AGENTS.md`。
@@ -208,6 +209,7 @@ Windows 下也可直接使用外层目录的 `启动天命.bat`（正式启动�
 - **CHGIS 数据**：`pessimistcamellia/china-history-map` 的 `v2/data/geo/ming.json`（CHGIS V6/Hartwell GIS v5）含明代府州 polygon，学术授权（"验证用·商业化前换源"）——游戏开源免费，提取府名+坐标派生成游戏内简化多边形可接受；天启新增府（承天府/潞安府等）与边镇卫所（宣府镇/宁武关）CHGIS 万历版图不含 → 回落标签。
 - **府名防碰撞顺序**：**必须先防碰撞（散开）、后约束进省**（v1375 真凶：v1374 的防碰撞下移在省约束之后 → 下移把 label 移出省 polygon 跑海里）；跨省全局布局用「8 方向螺旋散开·宁重叠不隐藏」策略（v1376），避免散开后被后续处理挤出省。
 - **记忆注入压缩（v1377）**：v6 记忆注入的 XML 属性是最大冗余（45 条 hard-char 每条属性 ~150 字符 vs 正文 ~10 字）——同构短条目合并渲染（`<hard-state>` 列表）+ 删冗余派生属性（authority-rank/lane）可砍 ~40% 且信息量守恒；packZones 的 mustKeep（coreFacts）会顶穿预算，先瘦身 mustKeep 区再谈预算。改渲染格式前先查 smoke 契约（sections 结构有断言、渲染文本无）。
+- **焦点过滤兜底三件套（v1378）**：硬事实（人物状态/活跃诏令）全量 + 近 N 回合 fresh + 每 type 保底——**三者缺一会滤掉刚结算的重要记忆**（sc1-governance-markers 踩过）；**perHitMaxChars 截断会丢尾部关键信息**（resolution 在 100 字符处被切·180→100 时 smoke 抓出·140 是折中）；**sections 数据结构是公共契约**（诊断面板/多个 smoke 依赖）——两级注意力只能动渲染层，不能动 sections 数组。
 - **过场感知（v1377）**：进度条"卡住"= 蠕动被拍 pct ceiling 死钳（systems 组 9 拍挤在 2.9% 区间）——**拉宽 pct 分布 + 加快 idle bump 比单纯加速动画更治本**；改 BEATS pct 前先查 `verify-endturn-progress.js` 契约（硬编码多个表值）。
 - **进度条 idle bump**：拍间隙 >8s ceiling 每 2s +0.5%；**拍中只断链、回合结束/新拍才重置 ceiling**（v1359/v1360 两轮才修干净）。
 
