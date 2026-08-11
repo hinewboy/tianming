@@ -1331,6 +1331,7 @@ openSettings=function(){
     "<label><input type=\"checkbox\" "+(P.ai && P.ai.sc2Pipeline==='3stage'?'checked':'')+" onchange=\"if(!P.ai)P.ai={};P.ai.sc2Pipeline=this.checked?'3stage':null;saveP();\"> sc2 3stage</label>"+
     "<label><input type=\"checkbox\" "+(P.ai && P.ai.narrativeReviewEnabled===true?'checked':'')+" onchange=\"if(!P.ai)P.ai={};P.ai.narrativeReviewEnabled=this.checked;saveP();\"> sc27 叙事审查</label>"+
     "<label><input type=\"checkbox\" "+(P.ai && P.ai.sc28Enabled===true?'checked':'')+" onchange=\"if(!P.ai)P.ai={};P.ai.sc28Enabled=this.checked;saveP();\"> sc28 世界快照</label>"+
+    "<label><input type=\"checkbox\" "+(P.ai && P.ai.fastEndTurn===true?'checked':'')+" onchange=\"if(!P.ai)P.ai={};P.ai.fastEndTurn=this.checked;saveP();\"> 快速过回合(30秒档)</label>"+
     "</div>"+
     "<span style=\"font-size:0.7rem;color:var(--ink-300,#888);\">\u6CE8\uFF1A\u6539\u52A8\u540E\u9996\u56DE\u5408\u4F1A\u91CD\u5EFA\u63D0\u793A\u7F13\u5B58\uFF0C\u7565\u589E\u4E00\u6B21\u5C0F\u989D\u5F00\u9500\u3002</span>"+
     "</details></div>"+

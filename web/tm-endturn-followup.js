@@ -365,6 +365,13 @@
           });
         }
       };
+      // T1383·快速过回合：P.ai.fastEndTurn=true → 跳过 Branch A/B/C 深度调用·用 SC1 内嵌字段兜底
+      //   (npc_actions/faction_events/army_changes/zhengwen 均在 SC1 输出 schema)·AI 调用≈SC1 一项·30s 目标
+      var _fastET = !!(P.ai && P.ai.fastEndTurn === true);
+      if (_fastET) {
+        var _sc15P = Promise.resolve(null);
+        _dbg('[fastEndTurn] skip Branch A (sc15/sc15n)·SC1.npc_actions 兜底');
+      } else {
       // Phase 4 A6·sc15n 3-tier 合一·当 P.ai.sc15nEnabled=true 跳 sc15·走新合并版本
       var _sc15nEnabled = !!(P.ai && P.ai.sc15nEnabled === true);
       if (_sc15nEnabled) {
@@ -603,6 +610,7 @@
         }
       } catch(e15) { _dbg('[NPC Deep] \u5931\u8D25:', e15); throw e15; }
       }); // end Sub-call 1.5 _runSubcall
+      } // end fastEndTurn else (Branch A sc15/sc15n)
       })(); // ── end Branch A IIFE (P8.1: 仅含 sc15·sc_memwrite 已移到 post-turn 队列) ──
 
       // --- Sub-call SC_MEMWRITE: NPC 记忆自动回写 (P8.1 移到 post-turn·消费方仅是下回合 NPC 记忆系统) ---
@@ -779,7 +787,7 @@
 
       // ── Branch B · 势力·经济·军事专项（_runSubcallBatch 已内部 concurrency=3）──
       // --- Sub-call 1.6/1.7/1.8 batch --- [full only]
-      var _branchB = _runSubcallBatch('full-specialty', [
+      var _branchB = _fastET ? Promise.resolve(null) : _runSubcallBatch('full-specialty', [  // T1383: fastET 跳过 Branch B(sc16-18)·SC1.faction_events/fiscal_adjustments/army_changes 兜底
       function(){ return _runSubcall('sc16', '势力推演', 'full', async function() {
       // Phase 3 Q5·SC16 lite variant·当 P.ai.sc16Lite=true 走 top-3 priorities 简版·~80% token 节省
       var _sc16Lite = !!(P.ai && P.ai.sc16Lite === true);
@@ -1256,7 +1264,7 @@
       // --- SC_CONSISTENCY_AUDIT: 深化数据一致性审核（方向7扩展·S3） ---
       // 扫描 SC16/17/18 彼此的输出是否冲突·auto-patch 或 rerun
       // 保持前台收束：审计可能修正 _turnAiResults 中被 sc2 摘要读取的对象引用。
-      var _runConsistencyAudit = async function(){ return _runSubcall('sc_audit', '数据一致性审核', 'lite', async function() {
+      var _runConsistencyAudit = _fastET ? async function(){ return null; } : async function(){ return _runSubcall('sc_audit', '数据一致性审核', 'lite', async function() {
       _quietLoad("\u6570\u636E\u4E00\u81F4\u6027\u5BA1\u6838", 66);
       try {
         var _tres = GM._turnAiResults || {};
@@ -1690,7 +1698,7 @@
 
       // ── Branch C · 后人戏说 → 叙事审查 ──
       // 会读取 GM/p1 当前世界状态，必须等 sc16/17/18 的补充变动和一致性审计收束后再跑。
-      var _runBranchC = async function() {
+      var _runBranchC = _fastET ? async function(){ _dbg('[fastEndTurn] skip Branch C (sc2)·SC1.zhengwen 兜底'); return null; } : async function() {
 
       // Phase 5 A7·sc2/sc27 3stage 合并·sc2_outline → sc27_review → sc2_prose·一段失败 fallback 旧 sc2 单调用
       // 默认 OFF·P.ai.sc2Pipeline='3stage' 才开
