@@ -1316,6 +1316,7 @@ openSettings=function(){
     "<button class=\"bt bs bsm\" onclick=\"if(window.TM&&TM.ai&&TM.ai.exportDiagnostics){TM.ai.exportDiagnostics();}else if(typeof exportAIDiagnosticsJSON==='function'){exportAIDiagnosticsJSON();}else{toast('\u8BCA\u65AD API \u672A\u52A0\u8F7D');}\">\u2193 \u5BFC\u51FA\u65E5\u5FD7</button>"+
     ((typeof _renderMemoryDiagnosticsButton === 'function') ? _renderMemoryDiagnosticsButton() : "<button class=\"bt bs bsm\" onclick=\"if(window.TM&&TM.ai&&TM.ai.openMemoryDiagnostics){TM.ai.openMemoryDiagnostics();}else if(typeof openMemoryDiagnostics==='function'){openMemoryDiagnostics();}else{toast('\u8BB0\u5FC6\u8BCA\u65AD\u672A\u52A0\u8F7D');}\">\u8BB0\u5FC6\u8BCA\u65AD</button>")+
     "</div></div>"+
+    "<label style=\"display:flex;align-items:center;gap:0.5rem;margin:0.5rem 0;padding:0.45rem 0.6rem;border:1px solid var(--gold-d,#b08d3c);border-radius:6px;background:rgba(176,141,60,0.08);cursor:pointer;\"><input type=\"checkbox\" "+(!(P.ai && P.ai.fastEndTurn===false)?'checked':'')+" onchange=\"if(!P.ai)P.ai={};P.ai.fastEndTurn=this.checked;saveP();\" style=\"flex-shrink:0;\"><span style=\"font-size:0.85rem;color:var(--gold);font-weight:700;\">⚡ 快速过回合(30秒档)</span><span style=\"font-size:0.7rem;color:var(--txt-d,#888);margin-left:0.4rem;\">跳过深度扩展推演·主推演内嵌字段兑底·一回合大幅加速</span></label>"+
     // Phase 7.5 A\u00B79 \u4E2A\u65B0 P.ai opt-in toggle \u66B4\u9732\u00B7user \u53EF\u52FE\u9009\u5207\u6362
     "<details class=\"fd tm-settings-adv\"><summary>AI \u7BA1\u7EBF\u5F00\u5173 \u00B7 \u9AD8\u7EA7\uFF08\u5185\u90E8\u5B50\u8C03\u7528\u65CB\u94AE\u00B7\u4E00\u822C\u65E0\u9700\u6539\u52A8\uFF09</summary>"+
     "<div style=\"display:grid;grid-template-columns:1fr 1fr;gap:0.25rem;font-size:0.78rem;width:100%;\">"+
@@ -1331,7 +1332,6 @@ openSettings=function(){
     "<label><input type=\"checkbox\" "+(P.ai && P.ai.sc2Pipeline==='3stage'?'checked':'')+" onchange=\"if(!P.ai)P.ai={};P.ai.sc2Pipeline=this.checked?'3stage':null;saveP();\"> sc2 3stage</label>"+
     "<label><input type=\"checkbox\" "+(P.ai && P.ai.narrativeReviewEnabled===true?'checked':'')+" onchange=\"if(!P.ai)P.ai={};P.ai.narrativeReviewEnabled=this.checked;saveP();\"> sc27 叙事审查</label>"+
     "<label><input type=\"checkbox\" "+(P.ai && P.ai.sc28Enabled===true?'checked':'')+" onchange=\"if(!P.ai)P.ai={};P.ai.sc28Enabled=this.checked;saveP();\"> sc28 世界快照</label>"+
-    "<label><input type=\"checkbox\" "+(P.ai && P.ai.fastEndTurn===true?'checked':'')+" onchange=\"if(!P.ai)P.ai={};P.ai.fastEndTurn=this.checked;saveP();\"> 快速过回合(30秒档)</label>"+
     "</div>"+
     "<span style=\"font-size:0.7rem;color:var(--ink-300,#888);\">\u6CE8\uFF1A\u6539\u52A8\u540E\u9996\u56DE\u5408\u4F1A\u91CD\u5EFA\u63D0\u793A\u7F13\u5B58\uFF0C\u7565\u589E\u4E00\u6B21\u5C0F\u989D\u5F00\u9500\u3002</span>"+
     "</details></div>"+

@@ -11,7 +11,7 @@ const ROOT = path.resolve(__dirname, '..');
 const src = fs.readFileSync(path.join(ROOT, 'tm-endturn-followup.js'), 'utf8');
 
 // ── 1) fastEndTurn 开关 + 4 处跳过 ──
-assert(/var _fastET = !!\(P\.ai && P\.ai\.fastEndTurn === true\)/.test(src), 'fastEndTurn 开关定义');
+assert(/var _fastET = !\(P\.ai && P\.ai\.fastEndTurn === false\)/.test(src), 'fastEndTurn 开关定义(默认开启)');
 assert(/var _sc15P = Promise\.resolve\(null\)/.test(src), 'Branch A 跳过时 _sc15P 兜底(resolved promise·防 1254 引用崩)');
 assert(/var _branchB = _fastET \? Promise\.resolve\(null\) : _runSubcallBatch/.test(src), 'Branch B 跳过');
 assert(/var _runConsistencyAudit = _fastET \? async function\(\)\{ return null; \}/.test(src), 'audit 快速跳过');
@@ -26,7 +26,12 @@ assert(/else \{\s*\/\/ Phase 4 A6·sc15n/.test(src), '完整推演路径保留�
 const patches = fs.readFileSync(path.join(ROOT, 'tm-patches.js'), 'utf8');
 assert(patches.includes('P.ai.fastEndTurn=this.checked'), '设置面板有快速过回合开关');
 
-// ── 3) 快速模式行为验证：默认 false 走原路径（用 vm 加载 followup 检查 _fastET 逻辑不破坏既有结构）──
-assert(!/fastEndTurn\s*[=:]\s*true/.test(src.split('var _fastET')[1] || ''), '默认非开启（false 路径）');
+// ── 3) 默认开启验证：_fastET 默认 true（T1384）·显式关闭(fastEndTurn=false)才回完整推演 ──
+{
+  const src = fs.readFileSync(path.join(ROOT, 'tm-endturn-followup.js'), 'utf8');
+  assert(/var _fastET = !\(P\.ai && P\.ai\.fastEndTurn === false\)/.test(src), '默认开启快速档（T1384: 显式关闭才回完整推演）');
+  const patches = fs.readFileSync(path.join(ROOT, 'tm-patches.js'), 'utf8');
+  assert(/!\(P\.ai && P\.ai\.fastEndTurn===false\)\?'checked'/.test(patches), '设置开关默认勾选');
+}
 
 console.log('smoke-endturn-fast-mode ok');

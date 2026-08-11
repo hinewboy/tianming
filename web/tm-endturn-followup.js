@@ -367,7 +367,7 @@
       };
       // T1383·快速过回合：P.ai.fastEndTurn=true → 跳过 Branch A/B/C 深度调用·用 SC1 内嵌字段兜底
       //   (npc_actions/faction_events/army_changes/zhengwen 均在 SC1 输出 schema)·AI 调用≈SC1 一项·30s 目标
-      var _fastET = !!(P.ai && P.ai.fastEndTurn === true);
+      var _fastET = !(P.ai && P.ai.fastEndTurn === false);   // T1384: 默认开启快速档·显式取消勾选才回完整推演
       if (_fastET) {
         var _sc15P = Promise.resolve(null);
         _dbg('[fastEndTurn] skip Branch A (sc15/sc15n)·SC1.npc_actions 兜底');
