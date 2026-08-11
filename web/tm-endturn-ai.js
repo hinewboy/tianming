@@ -3565,21 +3565,30 @@
             try {
               var _ht = checkPromptTokenBudget((sysP || '') + '\n' + tp1);
               var _htTarget = (_ht.budget && _ht.budget.warn80) ? _ht.budget.warn80 : Math.floor(((_ht.budget && _ht.budget.budget) || _ht.tokens) * 0.8);
-              if (_ht.status === 'critical' && _ht.tokens > _htTarget && tp1.length > 4000) {
-                var _htKeepRatio = Math.max(0.2, Math.min(0.95, _htTarget / _ht.tokens));
-                var _htKeep = Math.floor(tp1.length * _htKeepRatio);
-                var _htHead = Math.floor(_htKeep * 0.5);
-                var _htTail = _htKeep - _htHead;
-                if (_htHead > 300 && _htTail > 300 && (_htHead + _htTail) < tp1.length) {
-                  var _htOmit = tp1.length - _htHead - _htTail;
-                  tp1 = tp1.slice(0, _htHead)
-                    + '\n\n【⚠ 上下文窗口不足·已硬截中段约 ' + _htOmit + ' 字以保关键首尾(玩家诏令/输出约束)·请据现有信息推演·缺失处勿臆造】\n\n'
-                    + tp1.slice(tp1.length - _htTail);
-                  if (typeof toast === 'function') toast('[SC1] 仍超预算·硬截中段 ' + _htOmit + ' 字保窗口');
-                  if (window.TM && window.TM.lastPromptTokens && window.TM.lastPromptTokens.sc1) {
-                    var _htAfter = checkPromptTokenBudget((sysP || '') + '\n' + tp1);
-                    window.TM.lastPromptTokens.sc1.hardTrimmed = { omittedChars: _htOmit, tokensAfter: _htAfter.tokens, statusAfter: _htAfter.status };
-                  }
+              if ((_ht.status === 'critical' && _ht.tokens > _htTarget && tp1.length > 4000) || tp1.length > 30000) {
+                // T1388(2026-08-11)·循环硬截·保证 tp1 ≤ 30K 字符(≈15K tokens·deepseek 128K 窗口内)——防 104K 输入爆炸(用户实测「仍超预算·硬截中段104799字」·输入失控→推演必败→回合不推进)
+                var _htGuard = 0;
+                var _htOmitTotal = 0;
+                while ((tp1.length > 30000 || (_htGuard === 0 && _ht.status === 'critical' && _ht.tokens > _htTarget)) && _htGuard < 3) {
+                  _htGuard++;
+                  // T1388: tokens 仍超 → 按比例压；tokens 已达标仅字符超 30K → 每轮保 50%(稳定收敛·防 0.95 慢爬)
+                  var _htKeepRatio = (_ht.status === 'critical') ? Math.max(0.3, Math.min(0.95, _htTarget / _ht.tokens)) : 0.5;
+                  var _htKeep = Math.floor(tp1.length * _htKeepRatio);
+                  var _htHead = Math.floor(_htKeep * 0.5);
+                  var _htTail = _htKeep - _htHead;
+                  if (_htHead > 300 && _htTail > 300 && (_htHead + _htTail) < tp1.length) {
+                    var _htOmit = tp1.length - _htHead - _htTail;
+                    _htOmitTotal += _htOmit;
+                    tp1 = tp1.slice(0, _htHead)
+                      + '\n\n【⚠ 上下文窗口不足·已硬截中段约 ' + _htOmit + ' 字以保关键首尾(玩家诏令/输出约束)·请据现有信息推演·缺失处勿臆造】\n\n'
+                      + tp1.slice(tp1.length - _htTail);
+                    try { _ht = checkPromptTokenBudget((sysP || '') + '\n' + tp1); } catch(_htRe) { _ht = { status: 'ok', tokens: 0 }; }
+                  } else { break; }
+                }
+                if (_htOmitTotal > 0 && typeof toast === 'function') toast('[SC1] 仍超预算·硬截中段 ' + _htOmitTotal + ' 字保窗口');
+                if (window.TM && window.TM.lastPromptTokens && window.TM.lastPromptTokens.sc1) {
+                  var _htAfter = checkPromptTokenBudget((sysP || '') + '\n' + tp1);
+                  window.TM.lastPromptTokens.sc1.hardTrimmed = { omittedChars: _htOmitTotal, tokensAfter: _htAfter.tokens, statusAfter: _htAfter.status };
                 }
               }
             } catch (_htErr) {}

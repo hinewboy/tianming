@@ -31,7 +31,11 @@ const validateCall = stepsSrc.indexOf('TM.Endturn.Validity.validateBeforeCommit'
 const systemsStep = stepsSrc.indexOf("name: 'systems'");
 assert(validateCall >= 0, 'pipeline calls validateBeforeCommit');
 assert(systemsStep >= 0 && validateCall < systemsStep, 'validity gate runs before systems step');
-assert(/_lastEndturnValidity/.test(stepsSrc), 'pipeline stores last endturn validity diagnostics');
-assert(/throw\s+/.test(stepsSrc.slice(validateCall, validateCall + 1300)), 'pipeline aborts when validity gate fails');   // T1381: toast 详情扩展占用字符·窗口 900→1300
+assert(/\._lastEndturnValidity/.test(stepsSrc), 'pipeline stores last endturn validity diagnostics');
+// T1388: validity failed → 不再 abort·自动降级(合成账本)推进回合(治无限轮回第1回合)
+assert(/T1388\(2026-08-11\)·不再 abort——自动 emergency 降级/.test(stepsSrc), 'validity failed → 降级推进(不 abort)');
+assert(/GM\._endTurnFallbackCount = _fbCount \+ 1/.test(stepsSrc), '降级计数(GM._endTurnFallbackCount)');
+assert(/本回合 AI 推演降级/.test(stepsSrc), '降级提示(非失败)');
+assert(/如果仍失败·极端场景才 abort/.test(stepsSrc) || /极端场景才 abort/.test(stepsSrc), '极端场景(降级也失败)才 throw');
 
 console.log('[smoke-endturn-validity-gate] pass assertions=' + passed.value);

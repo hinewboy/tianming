@@ -404,11 +404,56 @@
                 return (f.label || f.id || '') + (f.status ? ' [' + f.status + ']' : '') + ' ' + String(f.error || '').slice(0, 80);
               }).join(' | ');
             }
-            try { if (typeof toast === 'function') toast('本回合 AI 推演失败（' + String(_why).slice(0, 200) + '）·请重试或检查 AI 诊断。'); } catch(_) {}
-            if (TM.Endturn.Validity.EndturnInvalidResultError) {
-              throw new TM.Endturn.Validity.EndturnInvalidResultError(validity);
+            // T1388(2026-08-11)·不再 abort——自动 emergency 降级(合成账本)→走完管道→回合必推进
+            //   用户诉求: 跑通流程·不无限轮回第1回合(此前 validity failed 抛 EndturnInvalidResultError→onError:'abort'→回合不推进→数据累积→输入爆炸→再失败·恶性循环+烧token)
+            try {
+              if (typeof toast === 'function') toast('本回合 AI 推演降级（' + String(_why).slice(0, 180) + '）·已按保守账本推进回合·请检查 AI 诊断。'); } catch(_) {}
+            try {
+              var _fbCount = Number(GM && GM._endTurnFallbackCount) || 0;
+              if (GM) GM._endTurnFallbackCount = _fbCount + 1;
+              var _fb1 = (GM && GM._turnAiResults && GM._turnAiResults.subcall1);
+              if (!_fb1 || !_fb1.shizhengji || /失败|暂缺|AI降级/.test(String(_fb1.shizhengji || ''))) {
+                var _fbTurn = (GM && GM.turn) || 1;
+                var _fbBrief = '主推演结构化结果暂缺（' + String(_why).slice(0, 120) + '），系统采用保守降级账本。';
+                var _fbFallback = {
+                  shizhengji: _fbBrief,
+                  zhengwen: '朝局暂按既有状态延续。',
+                  shilu_text: '',
+                  szj_title: '时移事去',
+                  szj_summary: 'AI 推演异常，本回合按保守账本推进。',
+                  turn_summary: 'SC1 emergency fallback: no synthetic gameplay deltas applied.',
+                  player_status: '朝局暂按既有状态延续。',
+                  player_inner: '',
+                  events: [{ type: 'AI降级', title: '主推演结构化结果暂缺', text: String(_why).slice(0, 160), turn: _fbTurn }],
+                  _g2Fallback: true, _emergencyFallback: true,
+                  _fallbackReason: String(_why).slice(0, 200)
+                };
+                if (GM) {
+                  if (!GM._turnAiResults) GM._turnAiResults = {};
+                  GM._turnAiResults.subcall1 = _fbFallback;
+                }
+                ctx.results.sc1 = _fbFallback;
+                if (!ctx.results.aiResult) ctx.results.aiResult = {};
+                ctx.results.aiResult.shizhengji = _fbFallback.shizhengji;
+                ctx.results.aiResult.zhengwen = _fbFallback.zhengwen;
+                ctx.results.aiResult.events = _fbFallback.events;
+                // 重新校验：降级账本应通过（若仍失败·极端场景才 abort）
+                var _fbValidity = TM.Endturn.Validity.validateBeforeCommit(ctx);
+                ctx.meta.endturnValidity = _fbValidity;
+                if (_fbValidity && _fbValidity.status === 'failed') {
+                  if (TM.Endturn.Validity.EndturnInvalidResultError) {
+                    throw new TM.Endturn.Validity.EndturnInvalidResultError(_fbValidity);
+                  }
+                  throw new Error('本回合 AI 推演未形成可提交结果');
+                }
+              }
+            } catch(_fbE) {
+              if (_fbE instanceof TM.Endturn.Validity.EndturnInvalidResultError) throw _fbE;
+              if (TM.Endturn.Validity.EndturnInvalidResultError) {
+                throw new TM.Endturn.Validity.EndturnInvalidResultError(validity);
+              }
+              throw new Error('本回合 AI 推演未形成可提交结果');
             }
-            throw new Error('本回合 AI 推演未形成可提交结果');
           }
         }
         ctx.input._aiInferRan = true;
