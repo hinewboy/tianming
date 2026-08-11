@@ -395,7 +395,8 @@ function _ogpRenderPosCard(p, deptName, pathArr) {
     ? '<button class="ogp-pos-btn appoint" onclick="event.stopPropagation();_offOpenPicker(' + pathStr + ',\'' + safeDept + '\',\'' + safePos + '\',\'\')">\u4EFB \u547D</button>'
     : '<button class="ogp-pos-btn" onclick="event.stopPropagation();_offOpenPicker(' + pathStr + ',\'' + safeDept + '\',\'' + safePos + '\',\'' + safeHolder + '\')">\u6539 \u6362</button>';
 
-  var html = '<div class="ogp-pos ' + _rankCls + (isVacant?' vacant':'') + '">';
+  // 2026-08-12·卡片本体点击：与树视图一致·空缺/改换都拉起选任器（按钮 stopPropagation 不冲突）
+  var html = '<div class="ogp-pos ' + _rankCls + (isVacant?' vacant':'') + '" style="cursor:pointer;" onclick="event.stopPropagation();_offOpenPicker(' + pathStr + ',\'' + safeDept + '\',\'' + safePos + '\',\'' + safeHolder + '\')">';
   if (isVacant) html += '<div class="ogp-vacant-dot"></div>';
 
   // Head
