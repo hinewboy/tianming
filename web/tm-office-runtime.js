@@ -387,7 +387,8 @@ function _ogpRenderPosCard(p, deptName, pathArr) {
   var _sealCls = _rankLvl <= 6 ? '' : _rankLvl <= 12 ? ' mid-lvl' : ' low-lvl';
   var holder = p.holder ? (GM.chars||[]).find(function(c){return c && c.name === p.holder;}) : null;
   var isVacant = !holder;
-  var pathStr = JSON.stringify(pathArr);
+  // 2026-08-12·套用树图模板(842行 _safePath)：双引号转 &quot;·防 onclick 属性截断(点击无反应根因)
+  var pathStr = JSON.stringify(pathArr).replace(/"/g, '&quot;');
   var safeDept = escHtml(deptName||'').replace(/'/g,"\\'");
   var safePos = escHtml(p.name||'').replace(/'/g,"\\'");
   var safeHolder = escHtml(p.holder||'').replace(/'/g,"\\'");
