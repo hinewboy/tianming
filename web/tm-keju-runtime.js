@@ -1751,6 +1751,15 @@ function confirmFinalRanking() {
   }
 
   delete exam._pendingRanking;
+  // 2026-08-12·随机考生录取（前14历史+其余随机生成·具象化入 GM.chars+gradPool·充官缺）
+  try {
+    if (typeof window !== 'undefined' && window.TMMingKejuGen && typeof window.TMMingKejuGen.ensureEnrollment === 'function') {
+      var _genN = window.TMMingKejuGen.ensureEnrollment(exam, 14);
+      if (_genN > 0 && typeof _kejuWriteJishi === 'function') {
+        _kejuWriteJishi('科举·放榜', '录取进士约200人·其中随机取士' + _genN + '人以充官缺', '朝廷取士·以充府县之缺');
+      }
+    }
+  } catch (_kejGenE) {}
   exam.stage = 'finished';
   toast('\uD83D\uDCDC \u94A6\u5B9A\u5DF2\u5B9A\u00B7\u91D1\u699C\u5C06\u5F20');
   renderKejuStage();
