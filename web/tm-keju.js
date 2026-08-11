@@ -1025,31 +1025,30 @@ async function pickHistoricalCandidates(exam) {
 
   // T1391: local pool first - filter GM.chars (alive/no office/not player/age 18-60/unused) -> random 5-8, zero AI cost; AI only as fallback
   try {
-    var _kjPool = (GM.chars || []).filter(function(c){
-      if (!c || c.alive === false || c.dead) return false;
-      if (c.isPlayer) return false;
-      if (c.spouse || c.officialTitle || (c.title && c.title.length > 0)) return false;
-      var _pn = _kjNormNameKey(c.name);
-      if (!_pn || usedNames.indexOf(c.name) >= 0 || _deadKeys[_pn]) return false;
-      var _pa = Number(c.age);
-      if (isFinite(_pa) && (_pa < 18 || _pa > 60)) return false;
+    var _kjPool = ((typeof window !== 'undefined' && window.KEJU_HISTORICAL_POOL) || []).filter(function(p){
+      if (!p || !p.n) return false;
+      var _pk = _kjNormNameKey(p.n);
+      if (!_pk) return false;
+      if (_kjAliveKeys[_pk]) return false;
+      if (_deadKeys[_pk]) return false;
+      if (usedNames.indexOf(p.n) >= 0 || (p.d && usedNames.indexOf(p.d) >= 0)) return false;
       return true;
     });
     if (_kjPool.length >= 3) {
       var _kjShuf = _kjPool.slice().sort(function(){ return Math.random() - 0.5; });
       var _kjPick = _kjShuf.slice(0, 8);
-      var _kjLocal = _kjPick.map(function(c, i){
+      var _kjLocal = _kjPick.map(function(p, i){
         return {
-          name: c.displayName || c.name,
-          age: Number(c.age) || 30,
-          class: c.class || '寒门',
-          origin: c.origin || '',
+          name: p.n,
+          age: Math.max(20, Math.min(50, (p.by ? year - p.by : 30))),
+          class: '寒门',
+          origin: p.bp || '',
           historicalYearMet: year - 3 + i,
-          nativeEra: P.dynasty || '',
-          party: c.party || '',
-          shiliao: String(c.bio || c.summary || '').slice(0, 60),
-          personality: c.personality || '学者',
-          famousFor: String(c.bio || '').slice(0, 40),
+          nativeEra: p.s || P.dynasty || '',
+          party: '',
+          shiliao: String(p.b || '').slice(0, 60),
+          personality: '学者',
+          famousFor: String(p.b || '').slice(0, 40),
           probability: 0.7,
           _local: true
         };
