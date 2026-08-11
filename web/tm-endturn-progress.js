@@ -45,16 +45,16 @@
     { id: 'fu-parse',       pct: 90,   group: 'deepsim', match: '解析' },
     { id: 'step-4',         pct: 91,   group: 'edict',   match: '回合阶段 4/', prefix: true },
     { id: 'step-5',         pct: 92,   group: 'systems', match: '回合阶段 5/', prefix: true },
-    { id: 'sys-update',     pct: 92.4, group: 'systems', match: '更新数据' },
-    { id: 'sys-npc-engine', pct: 92.8, group: 'systems', match: '运行 NPC Engine' },
-    { id: 'sys-territory',  pct: 93.1, group: 'systems', match: '计算领地产出' },
-    { id: 'sys-fiscal',     pct: 93.4, group: 'systems', match: '财政结算' },
-    { id: 'sys-changes',    pct: 93.7, group: 'systems', match: '应用决策变动' },
-    { id: 'sys-history',    pct: 94,   group: 'systems', match: '检查历史事件' },
-    { id: 'sys-tenure',     pct: 94.3, group: 'systems', match: '检查职位与寿数' },
-    { id: 'sys-listeners',  pct: 94.6, group: 'systems', match: '处理监听队列' },
-    { id: 'sys-cache',      pct: 94.9, group: 'systems', match: '清理回合缓存' },
-    { id: 'step-6',         pct: 95.2, group: 'render',  match: '回合阶段 6/', prefix: true },
+    { id: 'sys-update',     pct: 92.5, group: 'systems', match: '更新数据' },
+    { id: 'sys-npc-engine', pct: 93,   group: 'systems', match: '运行 NPC Engine' },
+    { id: 'sys-territory',  pct: 93.5, group: 'systems', match: '计算领地产出' },
+    { id: 'sys-fiscal',     pct: 94,   group: 'systems', match: '财政结算' },
+    { id: 'sys-changes',    pct: 94.5, group: 'systems', match: '应用决策变动' },
+    { id: 'sys-history',    pct: 95,   group: 'systems', match: '检查历史事件' },
+    { id: 'sys-tenure',     pct: 95.5, group: 'systems', match: '检查职位与寿数' },
+    { id: 'sys-listeners',  pct: 96,   group: 'systems', match: '处理监听队列' },
+    { id: 'sys-cache',      pct: 96.5, group: 'systems', match: '清理回合缓存' },
+    { id: 'step-6',         pct: 96.8, group: 'render',  match: '回合阶段 6/', prefix: true },
     { id: 'render-shiji',   pct: 97,   group: 'render',  match: '生成史记弹窗' }
   ];
   // 双段式提示词模式的「AI推演 (1/2)」「AI推演 (2/2)」并入流式拍位
@@ -93,14 +93,16 @@
   function _clearIdleTimer() {
     if (_idleTimer) { clearTimeout(_idleTimer); _idleTimer = null; }
   }
+  // T1377(2026-08-11)·过场提速：拍间隙 idle 蠕动从「8s 后每 2s +0.5%」加快到「4s 后每 1s +1.0%」。
+  // 治「进度条在长 AI 调用间隙长时间不动」的卡住感知（封顶 97 不变·单调护栏不变）。
   function _scheduleIdleBump(ceil) {
     _idleCeil = ceil;
     _clearIdleTimer();
     _idleTimer = setTimeout(function _tick() {
-      _idleCeil = Math.min(_idleCeil + 0.5, 97);
+      _idleCeil = Math.min(_idleCeil + 1.0, 97);
       if (typeof window.setLoadingCrawlCeil === 'function') window.setLoadingCrawlCeil(_idleCeil);
-      _idleTimer = setTimeout(_tick, 2000);
-    }, 8000);
+      _idleTimer = setTimeout(_tick, 1000);
+    }, 4000);
   }
   function _clearIdleBump() {
     _clearIdleTimer();

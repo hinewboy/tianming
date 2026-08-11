@@ -166,6 +166,7 @@ const checks = [
   { name: 'memory-stance-netting', file: 'smoke-memory-stance-netting.js', estSec: 1, expectExit: 0 },
   { name: 'memory-forget', file: 'smoke-memory-forget.js', estSec: 1, expectExit: 0 },
   { name: 'memory-budget', file: 'smoke-memory-budget.js', estSec: 1, expectExit: 0 },
+  { name: 'memory-compact-render', file: 'smoke-memory-compact-render.js', estSec: 1, expectExit: 0 },
   { name: 'memory-capacity', file: 'smoke-memory-capacity.js', estSec: 1, expectExit: 0 },
   { name: 'memory-era-rollup', file: 'smoke-memory-era-rollup.js', estSec: 1, expectExit: 0 },
   { name: 'memory-recency-decay', file: 'smoke-memory-recency-decay.js', estSec: 1, expectExit: 0 },

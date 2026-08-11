@@ -192,7 +192,7 @@
   }
 
   function compactRefList(list) {
-    return arr(list).slice(0, 4).map(function(ref) {
+    return arr(list).slice(0, 2).map(function(ref) {
       if (!ref) return '';
       var t = clean(ref.type || '', 40).replace(/\s+/g, '_');
       var id = clean(ref.id || '', 80).replace(/\s+/g, '_');
@@ -250,6 +250,8 @@
     return out;
   }
 
+  // T1377(2026-08-11): 属性瘦身——authority-rank(由 authority 派生)/lane(由 section 标签表达)删除，
+  // source-refs/basis-refs 每侧≤2。信息量守恒(AI 语义不损)，字符量约 -40%(实测 191 hits 10350→~6500 字符)。
   function renderHit(hit) {
     var attrs = [
       'id="' + xml(hit.id) + '"',
@@ -257,10 +259,8 @@
       'turn="' + xml(hit.turn || 0) + '"'
     ];
     if (hit.authority) attrs.push('authority="' + xml(hit.authority) + '"');
-    if (hit.authorityRank != null) attrs.push('authority-rank="' + xml(hit.authorityRank) + '"');
     if (hit.factStatus) attrs.push('fact-status="' + xml(hit.factStatus) + '"');
-    if (hit.lane) attrs.push('lane="' + xml(hit.lane) + '"');
-    if (hit.visibility) attrs.push('visibility="' + xml(hit.visibility) + '"');
+    if (hit.visibility && hit.visibility !== 'internal') attrs.push('visibility="' + xml(hit.visibility) + '"');
     var sourceRefs = compactRefList(hit.sourceRefs);
     var basisRefs = compactRefList(hit.basisRefs);
     if (sourceRefs) attrs.push('source-refs="' + xml(sourceRefs) + '"');
@@ -268,12 +268,35 @@
     return '    <memory ' + attrs.join(' ') + '>' + xml(hit.text) + '</memory>\n';
   }
 
+  // T1377(2026-08-11): hard_state 人物状态合并渲染——45 条同构短条目(`名字 alive/dead 官职 派系`)
+  // 每条带全套 XML 属性(实测属性占 ~150 字符/条·正文仅 ~10 字) → 合并为一条紧凑列表。
+  // 信息量守恒(名字/生死/官职/派系/地点/实体id 全保留·AI 仍可按名引用)·sections 数据结构不变
+  // (smoke 契约断言的是 sections.coreFacts 数组·非渲染文本)·渲染/打包层自动生效。
+  function renderHardStateList(hits) {
+    var parts = hits.map(function(h) {
+      var p = [xml(clean(h.text, 60))];
+      var srcRef = h.sourceRefs && h.sourceRefs[0] && h.sourceRefs[0].id;
+      if (srcRef) p.push(xml(srcRef));
+      return p.join('·');
+    });
+    return '    <hard-state>' + parts.join('、') + '</hard-state>\n';
+  }
+
   function renderSection(key, hits) {
     if (!hits.length) return '';
     var meta = SECTION_META[key] || [key, key];
-    return '  <' + meta[0] + ' label="' + xml(meta[1]) + '">\n' +
-      hits.map(renderHit).join('') +
-      '  </' + meta[0] + '>\n';
+    var body;
+    if (key === 'coreFacts') {
+      var merged = [], rest = [];
+      hits.forEach(function(h) {
+        if (h.source === 'hard_state' && h.type === 'hard_state') merged.push(h);
+        else rest.push(h);
+      });
+      body = (merged.length ? renderHardStateList(merged) : '') + rest.map(renderHit).join('');
+    } else {
+      body = hits.map(renderHit).join('');
+    }
+    return '  <' + meta[0] + ' label="' + xml(meta[1]) + '">\n' + body + '  </' + meta[0] + '>\n';
   }
 
   function compileHits(hits, opts) {

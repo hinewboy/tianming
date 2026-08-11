@@ -117,7 +117,7 @@ assert(beatsMono, '拍序只进不退');
 const find = m => shown.find(s => s.msg === m);
 assert(find('检索数据库中').pct === 42.3, '检索数据库中: real 20 → 表值 42.3');
 assert(find('历史检查').pct === 89.5, '历史检查: real 85 → 表值 89.5（≥认知整合 89）');
-assert(find('计算领地产出').pct === 93.1, '计算领地产出: real 92.5 → 表值 93.1（单调段内）');
+assert(find('计算领地产出').pct === 93.5, '计算领地产出: real 92.5 → 表值 93.5（单调段内·T1377 systems 组 pct 拉宽）');
 assert(find('回合阶段 4/6 · 应用诏令附效').pct === 91, '母拍 4/6: real 54 → 表值 91');
 assert(find('生成史记弹窗').pct === 97, '生成史记弹窗保持 97');
 

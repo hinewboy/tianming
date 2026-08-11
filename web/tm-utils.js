@@ -1555,19 +1555,19 @@ function showLoading(msg,pct){
   _loadingMaxPct = cur;
   _$("loading-fill").style.width=cur+"%";
   _aiProgressTimer=setInterval(function(){
-    cur+=(Date.now()%7)*0.3+0.2;
+    cur+=(Date.now()%9)*0.5+0.5;
     if(cur>_loadingCrawlCeil)cur=_loadingCrawlCeil;
     if(cur<_loadingMaxPct)cur=_loadingMaxPct;
     _loadingMaxPct = cur;
     _$("loading-fill").style.width=cur+"%";
-  },400);
+  },250);
 }
 function hideLoading(){
   if(_aiProgressTimer){clearInterval(_aiProgressTimer);_aiProgressTimer=null;}
   _$("loading-fill").style.width="100%";
   _loadingMaxPct = 0;  // 重置·下回合从 0 开始
   _loadingCrawlCeil = 95;
-  setTimeout(function(){_$("loading").classList.remove("show");_$("loading-fill").style.width="0%";},250);
+  setTimeout(function(){_$("loading").classList.remove("show");_$("loading-fill").style.width="0%";},150);
 }
 // ═══ 后朝并发期间·模态排队机制 ═══
 // 朝会进行中（_isPostTurnCourt && !courtDone）触发的非史记弹窗（事件/科举/大事记等），

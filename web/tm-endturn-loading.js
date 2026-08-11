@@ -114,20 +114,20 @@
     '  --etl-sans:"Microsoft YaHei UI","Microsoft YaHei","Source Han Sans SC","Noto Sans CJK SC","Segoe UI",sans-serif;',
     '  font-family:var(--etl-serif);}',
     '#tm-etl.show{display:block;}',
-    '#tm-etl.is-finishing{transition:opacity 650ms ease;opacity:0;}',
+    '#tm-etl.is-finishing{transition:opacity 350ms ease;opacity:0;}',
     '#tm-etl.is-court-hidden{visibility:hidden;}',
     '.loading.tm-etl-suppress{display:none!important;}',
     /* 背景影像双缓冲 */
     '.tm-etl-bg,.tm-etl-bg-next{position:absolute;inset:0;z-index:0;background-size:cover;background-position:center;',
     '  filter:saturate(.86) contrast(1.08) brightness(.72);transform:scale(1.055);transform-origin:58% 46%;',
-    '  transition:opacity 1400ms ease,transform 2200ms ease;will-change:opacity,transform;',
+    '  transition:opacity 900ms ease,transform 1400ms ease;will-change:opacity,transform;',
     '  animation:tm-etl-drift 16s ease-in-out infinite alternate;}',
     '.tm-etl-bg-next{opacity:0;}',
     '#tm-etl.is-swapping .tm-etl-bg{opacity:0;transform:scale(1.075) translate3d(-.35%,.15%,0);}',
     '#tm-etl.is-swapping .tm-etl-bg-next{opacity:1;transform:scale(1.055) translate3d(.2%,-.12%,0);',
     '  -webkit-mask-image:radial-gradient(circle at 44% 50%,black 55%,transparent 74%);mask-image:radial-gradient(circle at 44% 50%,black 55%,transparent 74%);',
     '  -webkit-mask-repeat:no-repeat;mask-repeat:no-repeat;-webkit-mask-position:44% 50%;mask-position:44% 50%;',
-    '  animation:tm-etl-inkwipe 1400ms ease forwards;}',
+    '  animation:tm-etl-inkwipe 900ms ease forwards;}',
     /* 帷幕暗角（静态·零重绘） */
     '.tm-etl-veil{position:absolute;inset:0;z-index:1;pointer-events:none;background:',
     '  linear-gradient(90deg,rgba(5,4,3,.95) 0%,rgba(8,6,4,.68) 34%,rgba(8,6,4,.22) 62%,rgba(5,4,3,.82) 100%),',
@@ -156,7 +156,7 @@
     '.tm-etl-glyph{position:absolute;right:-1.5vw;top:50%;z-index:2;transform:translateY(-52%) rotate(3deg);pointer-events:none;',
     '  font-family:var(--etl-display);font-size:clamp(280px,46vh,470px);font-weight:900;line-height:1;',
     '  color:rgba(var(--acc),.045);-webkit-text-stroke:1px rgba(var(--acc),.14);text-shadow:0 0 90px rgba(var(--acc),.08);}',
-    '#tm-etl.is-title-swap .tm-etl-glyph{animation:tm-etl-glyphpop 760ms cubic-bezier(.3,.7,.2,1) both;}',
+    '#tm-etl.is-title-swap .tm-etl-glyph{animation:tm-etl-glyphpop 500ms cubic-bezier(.3,.7,.2,1) both;}',
     /* 起居注 */
     '.tm-etl-annals{position:absolute;right:clamp(20px,4.6vw,64px);top:50%;z-index:3;transform:translateY(-50%);',
     '  height:min(62vh,560px);max-width:min(300px,23vw);overflow:hidden;pointer-events:none;writing-mode:vertical-rl;',
@@ -186,7 +186,7 @@
     '  text-shadow:0 1px 0 rgba(255,248,219,.18),0 22px 52px rgba(0,0,0,.86);',
     '  animation:tm-etl-goldshift 8.4s ease-in-out infinite;}',
     '.tm-etl-title-text{display:inline-block;}',
-    '#tm-etl.is-title-swap .tm-etl-title-text{animation:tm-etl-titleswap 760ms cubic-bezier(.3,.7,.2,1) both;}',
+    '#tm-etl.is-title-swap .tm-etl-title-text{animation:tm-etl-titleswap 500ms cubic-bezier(.3,.7,.2,1) both;}',
     '.tm-etl-line{width:min(500px,100%);margin-top:22px;color:rgba(245,234,208,.9);font-family:var(--etl-narr);',
     '  font-size:clamp(18px,1.7vw,22px);font-weight:500;line-height:1.58;letter-spacing:.035em;',
     '  text-shadow:0 1px 0 rgba(255,239,198,.08),0 3px 16px rgba(0,0,0,.86);transition:color 360ms ease;}',
@@ -246,11 +246,11 @@
     '  box-shadow:inset 0 1px 3px rgba(255,225,184,.35),inset 0 -8px 16px rgba(42,7,4,.26),0 18px 70px rgba(79,14,8,.65);',
     '  transform:translate(-50%,-50%) scale(.38) rotate(-8deg);}',
     '.tm-etl-seal::after{content:"";position:absolute;inset:8px;border:1px solid rgba(255,226,184,.34);border-radius:4px;}',
-    '#tm-etl.is-sealed .tm-etl-seal{animation:tm-etl-sealpop 940ms cubic-bezier(.3,.8,.2,1) forwards;}',
+    '#tm-etl.is-sealed .tm-etl-seal{animation:tm-etl-sealpop 520ms cubic-bezier(.3,.8,.2,1) forwards;}',
     '.tm-etl-ink{position:absolute;inset:0;z-index:5;pointer-events:none;opacity:0;background:',
     '  radial-gradient(circle at 50% 50%,rgba(162,42,28,.22),transparent 24%),',
     '  linear-gradient(90deg,transparent,rgba(var(--acc),.13),transparent);}',
-    '#tm-etl.is-sealed .tm-etl-ink{animation:tm-etl-flash 940ms ease-out forwards;}',
+    '#tm-etl.is-sealed .tm-etl-ink{animation:tm-etl-flash 520ms ease-out forwards;}',
     /* 动画 */
     '@keyframes tm-etl-drift{from{transform:scale(1.055) translate3d(-.4%,-.2%,0);}to{transform:scale(1.075) translate3d(.45%,.25%,0);}}',
     '@keyframes tm-etl-inkwipe{from{-webkit-mask-size:10% 10%;mask-size:10% 10%;}to{-webkit-mask-size:340% 340%;mask-size:340% 340%;}}',
@@ -286,8 +286,8 @@
   ].join('\n');
 
   var AMBIENT_MS = 10500;     // 场景随机轮换间隔（真实回合分钟级，慢轮换）
-  var CROSSFADE_MS = 1400;
-  var TITLE_SWAP_MS = 760;
+  var CROSSFADE_MS = 900;     // T1377: 1400→900 场景交叉淡化提速
+  var TITLE_SWAP_MS = 500;    // T1377: 760→500 标题切换提速
   var ANNALS_CAP = 12;
 
   var BEATS = TM.Endturn.Progress.BEATS;
@@ -619,7 +619,7 @@
     _warm.onload = _warmReveal;
     _warm.onerror = _warmReveal;
     _warm.src = sceneUrl(_warmIdx);
-    window.setTimeout(_warmReveal, 1200);
+    window.setTimeout(_warmReveal, 800);
   }
 
   // 上屏（带入场动画）：start 的首屏、朝会结束的延迟上屏、暂避后的复出共用
@@ -705,7 +705,7 @@
     finishTimer = window.setTimeout(function() {
       root.classList.remove('show', 'is-finishing');
       stopTimers();
-    }, 680);
+    }, 360);
   }
 
   TM.Endturn.Progress.on(function(type, payload) {
