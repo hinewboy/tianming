@@ -1328,6 +1328,10 @@
     tp += '    ★ 玩家罢某人 → office_assignments action:"dismiss" + personnel_changes 同写·两处必配套\n';
     tp += '  · 封爵/赐号/追谥 → char_updates.updates 里更新 title/爵位/封号·并 careerEvent 记录\n';
     tp += '  · 赐死/诛戮/病故/战死 → 统一走 character_deaths:[{name:"真实在册人物名",reason:"具体死因"}]；严禁 char_updates.updates.alive/dead 裸写（后端会规范化并拒绝幻影人物）\n';
+    tp += '    ★【死亡硬约束·防无官可用】character_deaths 每回合自然死亡≤3人·且须满足其一：年高(≥60)或重病或战死/赐死/处决/瘟疫/谋逆伏诛/明确意外；\n';
+    tp += '    ★「压力过大/忧愤/抑郁/操劳」不得直接致死——压力大应转告病/致仕/请辞(npc_actions·retire)·只有叠加高龄或重病才可病故；\n';
+    tp += '    ★ 现任要员(尚书/侍郎/都御史/巡抚/总督/督师/阁臣/大学士)非战死/赐死/瘟疫/谋逆处决不判死·其去职走致仕/告病/乞骸；\n';
+    tp += '    ★ 青壮官员(未满45岁)无明确病由不判死(系统有合理性闸·不合理死亡将自动转为告病致仕·勿依赖)。\n';
     tp += '  · 下狱/捉拿/逮捕 → personnel_changes change 含『下狱/捉拿/逮捕』·将设 char._imprisoned=true·使其不参朝议\n';
     tp += '  · 抄家/抄没/籍没 → personnel_changes change 含『抄家』·将自动 EconomyLinkage.confiscate·私产入内帑+追隐匿·禁直接 fiscal_adjustments 写抄家收入(会双计)\n';
     tp += '  · 流放/发配/戍边 → personnel_changes change 含『流放/发配』·设 _exiled\n';
@@ -3305,6 +3309,7 @@
     sysP += '\n你可以通过返回JSON中的对应字段修改游戏中的一切：';
     sysP += '\n- resource_changes: 修改任何资源变量';
     sysP += '\n- char_updates: 修改角色忠诚/野心/压力/所在地/立场/党派等（new_location/new_stance/new_party）';
+    sysP += '\n- ★玩家角色(皇帝)死亡策略·硬约束: 皇帝可以驾崩·但须有明确死因(战败被俘/被弑/赐死/寿终/病故/年高/瘟疫)——不得以「压力过大/忧愤」等无厘头死因判玩家死亡(系统会拦下)；玩家死后由继统裁决器续玩：有嗣(太子/皇子)继位·无嗣则宗室入继(兄终弟及/择藩入继·系统自动)·游戏继续；玩家压力可写 stress_delta(影响叙事/决策质量描写)·但不宜每回合机械叠加至 100·压力高时应借问对/游宴/祭祀等叙事自然回落';
     sysP += '\n- battleResult: 结构化战斗结果。若本回合明确发生战斗，请输出 {winnerFactionId, loserFactionId, occupiedCityIds, casualties:{attacker,defender}, affectedArmies:[{armyId,side,loss,moraleDelta,loyaltyDelta,state,commanderFate}], commanderFate:{name,outcome}, huangweiDelta, postBattleEffects[]}，胜负/占城/伤亡不得只写在叙事里。★【玩家胜仗必出 battleResult】玩家方（朝廷/官军）本回合只要交战并取胜，必须输出本字段且 winnerFactionId 填玩家势力——否则军胜不会结算进皇威（玩家会看到「军胜」项纹丝不动）；叙事一旦出现"大破/大捷/收复/克城/歼敌/平虏/破贼"等胜果字样，必须配套 battleResult，不能只写在叙事里。\n  ※ huangweiDelta 0~8：仅当赢家是玩家势力时按战果定皇威加分——灭国级大捷/收复重镇 6~8、击溃主力 3~5、小胜/边境摩擦 1~2；敌胜或平局给 0。漏给则引擎按保底 +2/场落地。';
     sysP += '\n  ※ 伤亡定位：affectedArmies[].armyId 与败方军队引用，须用精确番号或主帅姓名（如"代善"），不能只给势力名——"后金"对应多支旗军，引擎无法定位到具体军，伤亡会落空、敌军杀不完。';
     _mark('base');

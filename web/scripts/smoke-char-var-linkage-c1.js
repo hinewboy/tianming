@@ -65,11 +65,11 @@ function main() {
   assert(approx(ch.ambition, 80.5, 0.01), '皇权弱+野心 → ambition +0.5 → ' + ch.ambition);
   assert(approx(ch.loyalty, 59.5, 0.01), '皇权弱谋权臣 loyalty -0.5 → ' + ch.loyalty);
 
-  // #3 暴君段 + 在朝官 → 压力累积
+  // #3 暴君段 + 在朝官 → 压力累积(2026-08-12 平衡:1.5×mr → 0.3×mr·慢性压迫·防全员顶满 100)
   ctx.GM.huangwei.index = 95;
   ch = { name: 'g', officialTitle: '尚书', stress: 20, loyalty: 60 };
   T(ch, 1);
-  assert(approx(ch.stress, 21.5, 0.01), '暴君段在朝官压力 +1.5 → ' + ch.stress);
+  assert(approx(ch.stress, 20.3, 0.01), '暴君段在朝官压力 +0.3 → ' + ch.stress);
   // #3 暴君段但无官职 → 压力不动
   ch = { name: 'h', stress: 20, loyalty: 60 };
   T(ch, 1);

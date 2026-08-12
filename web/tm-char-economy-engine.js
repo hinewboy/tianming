@@ -1147,18 +1147,23 @@
       if (_hobN > 0) stressDelta -= Math.min(_hobN, 3) * 0.3;   // 每项 -0.3·至多三项(-0.9/月)·与自然衰减(-0.4)同量级·不喧宾夺主
     }
     // traits（压力特质 hooks）
+    // ★2026-08-12 重压自愈(用户报「大臣全员压力100」):压力>85 者主动告病休养·每回合额外回落——
+    //   防压力长期卡死 100(只涨不落→顶满后无出口·只能等 AI 判死/降级致仕)。
+    if ((ch.stress || 0) > 85) stressDelta -= 3;
     ch.stress = clamp((ch.stress || 20) + stressDelta * mr, 0, 100);
 
     // 健康
     var healthDelta = -0.1;  // 自然老化
     if (ch.age > 60) healthDelta -= 0.2;
     if (ch.age > 70) healthDelta -= 0.3;
-    if (ch.stress > 70) healthDelta -= 0.3;
+    // ★2026-08-12 玩家(皇帝)保护:压力不额外拖玩家 health(皇帝压力只影响叙事/决策·不直接折寿·否则 stress 100→health 拖 0→无预警终局)
+    if (!ch.isPlayer && ch.stress > 70) healthDelta -= 0.3;
     if (ch.resources.privateWealth.money > 5000) healthDelta += 0.1;  // 富贵可养身
     ch.health = clamp((ch.health || 70) + healthDelta * mr, 0, 100);
 
     // 健康 = 0 → 死亡
-    if (ch.health <= 0 && !ch.dead) {
+    // ★2026-08-12 玩家(皇帝)免疫健康归零判死:玩家死亡只走明确事件(战败/被弑/赐死/寿终由 adjudicatePlayerDeath 裁决)
+    if (ch.health <= 0 && !ch.dead && !ch.isPlayer) {
       triggerCharacterDeath(ch, '疾');
     }
   }
@@ -1229,8 +1234,12 @@
       if (lDelta) ch.loyalty = clamp(ch.loyalty + lDelta * 0.5 * mr, 0, 100);
     }
     // #3 暴君段 → 在朝官员压力累积（§11.4·避祸事件 selfTarnish/feignIllness 暂略）
+    // ★2026-08-12 平衡(用户报「大臣全员压力100」):1.5×mr → 0.3×mr——暴君高压是慢性压迫·不是核弹。
+    //   原值 @mr=3 → +4.5/回合·20 回合全员顶满 100(再叠清洗震慑+AI stress_delta 直接崩)·
+    //   且清洗大臣加皇威+8 形成正反馈循环(越洗越威→暴君段越持续→全员越高)→ 官员集体告病/致仕→无官可用。
+    //   现值 @mr=3 → +0.9/回合·与自然衰减(-1.2)对冲·长期平衡在 60-80 高压区间(高压但可维持)。
     if (ch.officialTitle && G.huangwei && num(G.huangwei.index) > 90) {
-      ch.stress = clamp((ch.stress || 20) + 1.5 * mr, 0, 100);
+      ch.stress = clamp((ch.stress || 20) + 0.3 * mr, 0, 100);
     }
   }
 

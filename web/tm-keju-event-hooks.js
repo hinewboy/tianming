@@ -183,6 +183,45 @@
   /** 探 emperor.alive=false (帝崩) → 触发 ReignChange·一次性 */
   function _kjEventCheckReignTransition() {
     if (typeof GM === 'undefined' || !GM) return;
+    // ★2026-08-12 新君改元执行(继位时 _performSuccession 登记 GM._pendingReignChange·明制「次年正月改元」):
+    //   到 startYear 即把新年号并入 eraNames·全系统(日期显示/编年/恩科钩子)随之切换·清计划。
+    try {
+      var _prc = GM._pendingReignChange;
+      if (_prc && _prc.startYear && _prc.eraName) {
+        var _curY = _getCurYear();
+        if (_curY && _curY >= _prc.startYear) {
+          if (!GM.eraNames) GM.eraNames = [];
+          var _dupE = GM.eraNames.some(function (e) { return e && e.name === _prc.eraName; });
+          if (!_dupE) {
+            GM.eraNames.push({ name: _prc.eraName, startYear: _prc.startYear, startMonth: 1, startDay: 1 });
+            GM.eraNames.sort(function (a, b) { return (a.startYear || 0) - (b.startYear || 0); });
+            GM.eraName = _prc.eraName;
+            try {
+              if (typeof P !== 'undefined' && P && P.time) {
+                if (!P.time.eraNames) P.time.eraNames = [];
+                var _pdupE = P.time.eraNames.some(function (e) { return e && e.name === _prc.eraName; });
+                if (!_pdupE) P.time.eraNames.push({ name: _prc.eraName, startYear: _prc.startYear, startMonth: 1, startDay: 1 });
+                P.time.reign = _prc.eraName;
+                P.time.reignY = 1;
+              }
+            } catch (_pE) {}
+            if (typeof addEB === 'function') { try { addEB('国祚', '改元' + _prc.eraName + '元年'); } catch (_) {} }
+            try {
+              if (typeof TM !== 'undefined' && TM.Qiju && TM.Qiju.recordEntry) TM.Qiju.recordEntry({
+                turn: GM.turn || 1,
+                time: (typeof getTSText === 'function') ? getTSText(GM.turn) : '',
+                category: '国祚',
+                content: '【改元】' + _prc.eraName + '元年正月朔·天下改元'
+                  + (_prc.emperorName ? '·新君' + _prc.emperorName : '')
+                  + (_prc.fromEmperor ? '·承' + _prc.fromEmperor + '遗绪' : '')
+              });
+            } catch (_qE) {}
+            _kjEventOnReignChange(_prc.emperorName || '', _prc.startYear);
+          }
+          GM._pendingReignChange = null;
+        }
+      }
+    } catch (_prcE) { try { console.warn('[reign-transition] 改元执行异常:', _prcE && _prcE.message); } catch(_){} }
     if (typeof P === 'undefined' || !P || !P.playerInfo) return;
     var empName = P.playerInfo.characterName;
     if (!empName) return;

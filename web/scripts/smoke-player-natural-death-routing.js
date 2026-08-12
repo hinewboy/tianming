@@ -26,10 +26,16 @@ var code = src.slice(s, e);
 var hsrc = read('tm-endturn-helpers.js');
 var ha = hsrc.indexOf('function adjudicatePlayerDeath(ch, cause, opts) {');
 (function () {
-  var j = hsrc.indexOf('{', ha), d = 0;
-  for (; j < hsrc.length; j++) { var c = hsrc[j]; if (c === '{') d++; else if (c === '}') { d--; if (d === 0) { j++; break; } } }
-  var adjCode = hsrc.slice(ha, j);
-  mk._adjCode = adjCode;
+  // 提取 adjudicatePlayerDeath + 其依赖 _performSuccession/_resolveClanSuccessor/_reignNameFor(2026-08-12 重构)
+  function extract(fnName) {
+    var i = hsrc.indexOf('function ' + fnName);
+    if (i < 0) return '';
+    var j = hsrc.indexOf('{', i), d = 0;
+    for (; j < hsrc.length; j++) { var c = hsrc[j]; if (c === '{') d++; else if (c === '}') { d--; if (d === 0) { j++; break; } } }
+    return hsrc.slice(i, j);
+  }
+  mk._adjCode = ['adjudicatePlayerDeath', '_performSuccession', '_resolveClanSuccessor', '_reignNameFor']
+    .map(extract).join('\n');
 })();
 
 function mk(opts) {
@@ -78,18 +84,19 @@ console.log('— §a · triggerCharacterDeath 行为 —');
   ok(c2._mems.some(function (m) { return m.indexOf('皇长子|') === 0; }) && c2._mems.some(function (m) { return m.indexOf('旧臣|') === 0; }), '新君+群臣记忆驾崩(镜像 AI 路径)');
   ok(c2._ebs.some(function (x) { return x.indexOf('崩') > 0; }), '皇帝讣文称崩不称薨');
 
-  // 玩家死+无嗣：终局
+  // 玩家死+无嗣：宗室入继兜底续玩(2026-08-12·用户定调「皇帝可死但游戏继续」·不再终局)
   var c3 = mk({ resolveHeir: function () { return null; } });
   var emperor3 = { name: '天子', isPlayer: true, id: 'p1' };
   c3.triggerCharacterDeath(emperor3, '疾');
-  ok(c3.GM._playerDead === true, '无嗣：_playerDead 落(endturn-core 终局屏可消费·不再静默尸政)');
-  ok(/圣躬不豫/.test(c3.GM._playerDeathReason || ''), '死因人话化(疾→圣躬不豫医药罔效)');
+  ok(c3.GM._playerDead !== true, '无嗣：宗室入继兜底·不终局');
+  var clanHeir3 = (c3.GM.chars || []).find(function (c) { return c && c.isPlayer === true && c.name !== '天子'; });
+  ok(!!clanHeir3 && clanHeir3.isRoyal === true, '无嗣：宗室(藩王)入继接玩家位:' + (clanHeir3 ? clanHeir3.name : '?'));
 
-  // resolveHeir 缺位(沙箱/极端)：typeof 守卫→无嗣路径
+  // resolveHeir 缺位(沙箱/极端)：宗室入继兜底同样生效(名册生成·游戏继续·不抛不静默)
   var c4 = mk({ noResolve: true });
   var emperor4 = { name: '天子', isPlayer: true };
   c4.triggerCharacterDeath(emperor4, '疾');
-  ok(c4.GM._playerDead === true, 'resolveHeir 缺位：typeof 守卫走终局(不抛不静默)');
+  ok(c4.GM._playerDead !== true, 'resolveHeir 缺位：宗室入继兜底·不终局(不抛不静默)');
 
   // resolveHeir 抛异常：catch 回落终局
   var c5 = mk({ resolveHeir: function () { throw new Error('boom'); } });
@@ -97,17 +104,17 @@ console.log('— §a · triggerCharacterDeath 行为 —');
   c5.triggerCharacterDeath(emperor5, '战殁');
   ok(c5.GM._playerDead === true && c5.GM._playerDeathReason === '战殁', '继承路由异常：回落终局(宁终局勿尸政)');
 
-  // 嗣已死：不传死人
+  // 嗣已死：不传死人·宗室入继兜底续玩(太子崩尚有宗藩·2026-08-12)
   var c6 = mk({ resolveHeir: function () { return { name: '故太子', dead: true, alive: false }; } });
   var emperor6 = { name: '天子', isPlayer: true };
   c6.triggerCharacterDeath(emperor6, '疾');
-  ok(c6.GM._playerDead === true, '继承人已殁：不传死人·走终局');
+  ok(c6.GM._playerDead !== true, '继承人已殁：宗室入继兜底·续玩');
 })();
 
 /* ── §b 接线契约 ─────────────────────────────────────────────── */
 console.log('— §b · 接线契约 —');
 (function () {
-  ok(/if \(ch\.health <= 0 && !ch\.dead\) \{\s*\n\s*triggerCharacterDeath\(ch, '疾'\);/.test(src), '老化扣血→触死路径原样在(上游未动)');
+  ok(/if \(ch\.health <= 0 && !ch\.dead && !ch\.isPlayer\)/.test(src), '老化扣血→触死路径在(玩家保护:皇帝不死于疾·2026-08-12)');
   ok(/if \(ch\.isPlayer\) \{/.test(src.slice(s, s + 3000)), 'triggerCharacterDeath 内 isPlayer 分支在');
   ok(/adjudicatePlayerDeath/.test(src.slice(s, e)), 'isPlayer 分支委托玩家之死裁决器(R1a 统一收口)');
   var core = read('tm-endturn-core.js');

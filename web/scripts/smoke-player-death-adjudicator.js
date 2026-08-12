@@ -42,24 +42,35 @@ assert(c1.GM._successionEvent && c1.GM._successionEvent.from === '天子' && c1.
 assert(c1._emits.indexOf('succession') >= 0, '⑥ GameEventBus succession');
 assert(c1._mems.some(m => m.indexOf('皇长子|') === 0) && c1._mems.some(m => m.indexOf('权臣|') === 0), '⑦ 新君+群臣记忆');
 
-// ── 无嗣(孤家寡人·真 resolveHeir 返 null)→ 终局 ──
+// ── 无嗣(孤家寡人·真 resolveHeir 返 null)→ 宗室入继续玩(2026-08-12·用户定调「皇帝可死但游戏继续」) ──
 var lonely = { id: 'p2', name: '天子', isPlayer: true };
 var c2 = mkCtx([lonely]);
 var r2 = c2.adjudicatePlayerDeath(lonely, '崩于乱军之中', { kind: 'battle' });
-assert(r2.outcome === 'gameover' && c2.GM._playerDead === true, '⑧ 绝嗣→终局');
-assert(c2.GM._playerDeathReason === '崩于乱军之中' && c2.GM._playerDeathKind === 'battle', '⑨ 死因+分类落账(供终局屏/本纪)');
+assert(r2.outcome === 'succession' && !!r2.heir && r2.heir !== '天子', '⑧ 绝嗣→宗室入继续玩(非终局)');
+var clanHeir2 = (c2.GM.chars || []).find(c => c && c.isPlayer === true && c.name !== '天子');
+assert(!!clanHeir2 && clanHeir2.isRoyal === true, '⑧b 宗室(藩王)入继接玩家位:' + (clanHeir2 ? clanHeir2.name : '?'));
+assert(c2.GM._playerDead !== true, '⑧c 不触终局');
 
-// ── deadReason 覆写(econ 疾→圣躬不豫 映射经此保留) ──
+// ── 宗室亦绝(GM._noClanSuccession·特殊剧本/终局路径)→ 真终局 ──
+var lonely2 = { id: 'p2b', name: '天子', isPlayer: true };
+var c2b = mkCtx([lonely2]);
+c2b.GM._noClanSuccession = true;
+var r2b = c2b.adjudicatePlayerDeath(lonely2, '崩于乱军之中', { kind: 'battle' });
+assert(r2b.outcome === 'gameover' && c2b.GM._playerDead === true, '⑧d 宗室亦绝→真终局(保留终局路径)');
+assert(c2b.GM._playerDeathReason === '崩于乱军之中' && c2b.GM._playerDeathKind === 'battle', '⑨ 死因+分类落账(供终局屏/本纪)');
+
+// ── deadReason 覆写(econ 疾→圣躬不豫 映射经此保留·终局路径) ──
 var sick = { id: 'p3', name: '天子', isPlayer: true };
 var c3 = mkCtx([sick]);
+c3.GM._noClanSuccession = true;
 c3.adjudicatePlayerDeath(sick, '疾', { kind: 'natural', deadReason: '圣躬不豫，医药罔效' });
 assert(c3.GM._playerDeathReason === '圣躬不豫，医药罔效', '⑩ deadReason 覆写(终局文案人话化)');
 
-// ── 继承人已死→不传死人·终局 ──
+// ── 继承人已死→不传死人·宗室入继兜底续玩(2026-08-12) ──
 var emp4 = { id: 'p4', name: '天子', isPlayer: true, designatedHeirId: '故太子', childrenIds: ['故太子'] };
 var c4 = mkCtx([emp4, { name: '故太子', alive: false, dead: true }]);
 var r4 = c4.adjudicatePlayerDeath(emp4, '疾', { kind: 'natural' });
-assert(r4.outcome === 'gameover', '⑪ 储君已殁不传死人→终局');
+assert(r4.outcome === 'succession' && r4.heir !== '故太子', '⑪ 储君已殁→宗室入继续玩(不传死人)');
 
 // ── ch 缺失防御 ──
 var c5 = mkCtx([]);

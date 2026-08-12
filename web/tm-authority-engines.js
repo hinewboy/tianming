@@ -682,7 +682,9 @@
           var oldL = (typeof c.loyalty === 'number' && isFinite(c.loyalty)) ? c.loyalty : 50;
           c.loyalty = Math.min(100, oldL + 3);
         }
-        c.stress = Math.min(100, (c.stress || 0) + 15);
+        // ★2026-08-12 平衡(用户报「大臣全员压力100」):震慑压力 +15 → +6——清洗是立威·不是全员压垮。
+        //   原值每次清洗全员+15·叠加暴君段/AI加压·几次清洗即全员顶满 100。
+        c.stress = Math.min(100, (c.stress || 0) + 6);
       }
     });
     return { ok: true };

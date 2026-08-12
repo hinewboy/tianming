@@ -417,6 +417,64 @@ function resolveHeir(deadChar) {
   return null; // 交给 AI 推演
 }
 
+// ★2026-08-12 宗室入继兜底(治「皇帝可死但游戏要继续」·用户实机担忧):
+//   玩家(皇帝)死后若 resolveHeir 无直系继承人(开局无子/一直无子)→ 明制「兄终弟及/择藩入继」兜底:
+//   ①同族/宗室活人(在场兄弟子侄·familyTier imperial 或 family 相同)优先;
+//   ②无在场宗室 → 按明末史实藩王名册(世系近远)生成一位入继(本地零 AI·对齐 GM.chars 结构);
+//   ③仍无 → null(交终局)。
+//   名册按「世系离皇帝最近」排序:桂王朱常瀛(神宗子·皇叔)、福王世子朱由崧(神宗孙)、唐王朱聿键(太祖裔孙)、桂王世子朱由榔。
+function _resolveClanSuccessor(deadChar) {
+  var G = (typeof GM !== 'undefined' && GM) ? GM : null;
+  if (!G || !deadChar) return null;
+  // ① 同族/宗室在场活人(兄弟/子侄/宗藩):family 相同 或 皇族宗室且同势力·年长者优先(兄终弟及)
+  var clan = (G.chars || []).filter(function(c) {
+    if (!c || c === deadChar || c.alive === false || c.dead) return false;
+    if (c.isPlayer) return false;
+    if (c.family && deadChar.family && c.family === deadChar.family) return true;
+    if (c.familyTier === 'imperial' && c.faction && c.faction === deadChar.faction) return true;
+    return false;
+  }).sort(function(a, b) { return (b.age || 0) - (a.age || 0); });
+  if (clan.length > 0) return clan[0];
+  // ② 历史宗室名册(明末藩王·史实世系)
+  var _roster = [
+    { name: '朱常瀛', zi: '', title: '桂王', birthYear: 1597, admin: 48, intel: 42, military: 30, bio: '明神宗第七子，封桂王，藩邸梧州。国难之际，以皇叔之尊入继大统。' },
+    { name: '朱由崧', zi: '', title: '福王世子', birthYear: 1607, admin: 40, intel: 45, military: 28, bio: '福王朱常洵长子，洛阳之变后南奔。以神宗嫡孙入继，是为弘光。' },
+    { name: '朱聿键', zi: '长寿', title: '唐王', birthYear: 1602, admin: 55, intel: 60, military: 45, bio: '太祖二十三子唐王之后，好学知兵，以宗藩入继，力图振作。' },
+    { name: '朱由榔', zi: '', title: '桂王世子', birthYear: 1623, admin: 38, intel: 40, military: 30, bio: '桂王朱常瀛之子，以神宗之孙入继。' }
+  ];
+  var _year = 1627;
+  try {
+    var _ds = G._gameDate || '';
+    var _ym = String(_ds).match(/(\d{4})/);
+    if (_ym && _ym[1]) _year = parseInt(_ym[1], 10);
+    else if (G.startYear) _year = G.startYear + Math.floor((G.turn || 0) * ((G.daysPerTurn || 30) / 365));
+  } catch (_yrE) {}
+  var _used = {};
+  (G.chars || []).forEach(function(c) { if (c && c.name) _used[c.name] = true; });
+  for (var i = 0; i < _roster.length; i++) {
+    var r = _roster[i];
+    if (_used[r.name]) continue;
+    var _age = _year - r.birthYear;
+    if (_age < 12 || _age > 75) continue;   // 太幼/太老不继
+    var _nid = 'clan_' + r.name + '_' + _year;
+    var _newChar = {
+      id: _nid, name: r.name, zi: r.zi || '', title: r.title, gender: '男',
+      faction: deadChar.faction || '', age: _age, alive: true, dead: false,
+      isPlayer: false, isRoyal: true, familyTier: 'imperial', family: deadChar.family || ('明宗室_' + deadChar.name),
+      officialTitle: '', position: '', title2: '', stress: 35, health: 68,
+      intelligence: r.intel, administration: r.admin, military: r.military, charisma: 55,
+      loyalty: 85, ambition: 40, faith: '儒', culture: '宫廷', location: G._capital || '',
+      bio: r.bio + '（国变之际，宗藩入继）', background: r.bio,
+      isHistorical: false, _clanSuccessor: true, _successionYear: _year,
+      careerHistory: [], resources: { privateWealth: { money: 800, treasure: 100 } },
+      stressSources: [], _recentFailures: 0
+    };
+    G.chars.push(_newChar);
+    return _newChar;
+  }
+  return null;
+}
+
 // ═══ 玩家之死裁决器（鼎革R1a·2026-07-07·owner 铁律「终局=玩家角色被杀·被杀有储君=继统续玩」）═══
 // 一切玩家角色死亡产地（AI 叙事杀/自然老死/战殁/弑君…）统一只调此一口——
 // 吸收此前两份各自为政的世代传承镜像（tm-ai-apply-deaths E10 / tm-char-economy-engine
@@ -456,22 +514,21 @@ function adjudicatePlayerDeath(ch, cause, opts) {
       return { outcome: 'gameover', blockedFallback: true };
     }
     if (heir && heir.alive !== false && !heir.dead) {
-      ch.isPlayer = false;
-      heir.isPlayer = true; // arch-ok: 世代传承唯一裁决口(R1a 收拢两镜像·2026-07-07)
-      if (typeof P !== 'undefined' && P && P.playerInfo) P.playerInfo.characterName = heir.name; // arch-ok: 同上
-      if (typeof addEB === 'function') { try { addEB('继承', ch.name + '驾崩，' + heir.name + '继位'); } catch (_) {} }
-      if (typeof NpcMemorySystem !== 'undefined' && NpcMemorySystem.addMemory) {
-        try {
-          NpcMemorySystem.addMemory(heir.name, '先帝驾崩，继承大统', 10, 'career');
-          (GM.chars || []).forEach(function (c2) {
-            if (c2 && c2.alive !== false && !c2.isPlayer) NpcMemorySystem.addMemory(c2.name, '先帝' + ch.name + '驾崩，新君' + heir.name + '继位', 8, 'political');
-          });
-        } catch (_) {}
-      }
-      GM._successionEvent = { from: ch.name, to: heir.name, reason: cause || '', causeKind: opts.kind || '' }; // arch-ok: 帝位更迭事件唯一裁决口(既有叙事消费点)
-      if (typeof GameEventBus !== 'undefined' && GameEventBus.emit) { try { GameEventBus.emit('succession', { from: ch.name, to: heir.name, reason: cause }); } catch (_) {} }
-      return { outcome: 'succession', heir: heir.name };
+      return _performSuccession(ch, heir, cause, opts);
     }
+    // ★2026-08-12 宗室入继兜底(无直系继承人):明制「兄终弟及/择藩入继」·新君登场·游戏继续——
+    //   治用户「皇帝可以死·但游戏要继续」(此前无子=终局·后宫生子未成则一死即终)。
+    //   宗室入继系血统继承(非权臣兜底)·regicide/battle 死亦合法(史实:弑君后藩王入继平乱常见)。
+    //   守卫 GM._noClanSuccession=true 强制真终局(模拟宗室亦绝·供终局路径测试/特殊剧本)。
+    try {
+      if (!GM._noClanSuccession) {
+        var _clanHeir = _resolveClanSuccessor(ch);
+        if (_clanHeir && _clanHeir.alive !== false && !_clanHeir.dead) {
+          if (typeof addEB === 'function') { try { addEB('国祚', ch.name + '无嗣而崩，宗藩' + _clanHeir.name + '（' + (_clanHeir.title || '宗室') + '）入继大统'); } catch (_) {} }
+          return _performSuccession(ch, _clanHeir, cause, opts);
+        }
+      }
+    } catch (_csE) { try { console.warn('[玩家之死裁决] 宗室入继失败:', _csE && _csE.message); } catch(_){} }
     GM._playerDead = true; // arch-ok: 玩家死亡信号唯一裁决口(R1a·2026-07-07)
     GM._playerDeathReason = opts.deadReason || cause || ''; // arch-ok: 同上·死因文案唯一裁决口
     GM._playerDeathKind = opts.kind || ''; // arch-ok: 同上·死因分类供终局屏/本纪
@@ -482,6 +539,61 @@ function adjudicatePlayerDeath(ch, cause, opts) {
     try { console.warn('[玩家之死裁决] 继承路由异常·回落终局:', ePD && ePD.message); } catch (_) {}
     return { outcome: 'gameover', error: true };
   }
+}
+
+// 继统执行(世代传承唯一裁决口 R1a 之执行段):isPlayer 转移 + playerInfo 改写 + 继承事件 + 全朝记忆
+function _performSuccession(ch, heir, cause, opts) {
+  opts = opts || {};
+  try {
+    ch.isPlayer = false;
+    heir.isPlayer = true; // arch-ok: 世代传承唯一裁决口(R1a 收拢两镜像·2026-07-07)
+    if (typeof P !== 'undefined' && P && P.playerInfo) P.playerInfo.characterName = heir.name; // arch-ok: 同上
+    if (typeof addEB === 'function') { try { addEB('继承', ch.name + '驾崩，' + heir.name + '继位'); } catch (_) {} }
+    // ★2026-08-12 新君改元登记(明制「即位当年不改元·次年正月改元」):史实名册(弘光/隆武/永历)或寓意生成——
+    //   治「非史实新君(宗室入继)继位后年号仍书先帝」的史实错乱·改元执行在 tm-keju-event-hooks 的 endTurn 检查点。
+    try {
+      var _newEra = _reignNameFor(heir.name);
+      if (_newEra) {
+        var _cy = (typeof P !== 'undefined' && P && P.time && P.time.year) ? P.time.year : 0;
+        if (!GM._pendingReignChange) {
+          GM._pendingReignChange = { eraName: _newEra, startYear: _cy + 1, startMonth: 1, startDay: 1, emperorName: heir.name, fromEmperor: ch.name };
+        }
+      }
+    } catch (_reE) {}
+    if (typeof NpcMemorySystem !== 'undefined' && NpcMemorySystem.addMemory) {
+      try {
+        NpcMemorySystem.addMemory(heir.name, '先帝驾崩，继承大统', 10, 'career');
+        (GM.chars || []).forEach(function (c2) {
+          if (c2 && c2.alive !== false && !c2.isPlayer) NpcMemorySystem.addMemory(c2.name, '先帝' + ch.name + '驾崩，新君' + heir.name + '继位', 8, 'political');
+        });
+      } catch (_) {}
+    }
+    GM._successionEvent = { from: ch.name, to: heir.name, reason: cause || '', causeKind: opts.kind || '' }; // arch-ok: 帝位更迭事件唯一裁决口(既有叙事消费点)
+    if (typeof GameEventBus !== 'undefined' && GameEventBus.emit) { try { GameEventBus.emit('succession', { from: ch.name, to: heir.name, reason: cause }); } catch (_) {} }
+    return { outcome: 'succession', heir: heir.name };
+  } catch (_psE) {
+    try { console.warn('[玩家之死裁决] 继统执行异常:', _psE && _psE.message); } catch(_) {}
+    GM._playerDead = true;
+    return { outcome: 'gameover', error: true };
+  }
+}
+
+// ★2026-08-12 新君年号解析:史实名册优先(南明诸帝年号)·否则按寓意生成(礼部议定·双字吉祥·避先帝年号)
+function _reignNameFor(newEmperorName) {
+  var _hist = { '朱由崧': '弘光', '朱聿键': '隆武', '朱由榔': '永历', '朱常瀛': '永历', '朱慈烺': '明昌' };
+  if (_hist[newEmperorName]) return _hist[newEmperorName];
+  var G = (typeof GM !== 'undefined' && GM) ? GM : null;
+  var _used = {};
+  if (G) (G.eraNames || []).forEach(function(e) { if (e && e.name) _used[e.name] = true; });
+  var _first = ['隆', '永', '弘', '泰', '正', '光', '昌', '启', '嘉', '天', '顺', '治', '康', '宁', '和', '安', '熙', '明'];
+  var _second = ['昌', '光', '武', '历', '泰', '正', '启', '治', '康', '宁', '和', '安', '熙', '兴', '平', '定', '德', '丰', '清', '远'];
+  for (var i = 0; i < _first.length; i++) {
+    for (var j = 0; j < _second.length; j++) {
+      var _cand = _first[i] + _second[j];
+      if (!_used[_cand]) return _cand;
+    }
+  }
+  return '永昌'; // 兜底
 }
 
 SettlementPipeline.register('annualReview', '年度考课', function() { runAnnualReview(); }, 50, 'monthly');

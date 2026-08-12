@@ -25,10 +25,86 @@
 // 加载顺序：必须在 tm-endturn.js 之前
 // ============================================================
 
+// ★2026-08-12 死亡合理性闸(治「官员压力过大而死泛滥·无官可用」·用户实机反馈):
+//   根因:AI 每回合自由判 character_deaths·prompt 无数量/合理性约束·「压力过大」成随手死因。
+//   规则(保守·只拦明显不合理):
+//   a) 硬性死因(战死/赐死/处决/瘟疫/意外/自尽/谋逆伏诛)直放·不占预算;
+//   b) 每回合「自然死亡」预算 cap(默认3)·超出者降级致仕;
+//   c) reason 纯「压力/忧愤/郁」类且无 病/老 叠加 → 不判死·降级致仕(记 _stressRetired);
+//   d) 现任要员(尚书/侍郎/都御史/巡抚/总督/督师/阁臣等) 非硬性死因 → 不死·降级致仕;
+//   e) 青壮(<45)无明确病由(病/疫/战/赐/斩/诛) → 不死·降级致仕(防随手判死新科官员)。
+function _deathGuard(cd) {
+  var r = String((cd && cd.reason) || '');
+  var ch = null;
+  try { ch = (typeof _fuzzyFindChar === 'function' ? _fuzzyFindChar(cd.name) : null) || findCharByName(cd.name); } catch (_dG) {}
+  if (!ch) return { allow: true };
+  // ★玩家(皇帝)死亡策略(2026-08-12 用户定调「皇帝可以死·但游戏要继续」):
+  //   明确死因(战败/被弑/赐死/寿终/病故/年高/瘟疫)一律放行 → 走继统裁决器(有嗣继位/无嗣宗室入继·游戏继续);
+  //   仅「压力过大/忧愤」等无厘头随手死因拦下(不改任何状态·皇帝压力只影响叙事不致死)。
+  if (ch.isPlayer || (typeof P !== 'undefined' && P && P.playerInfo && P.playerInfo.characterName === ch.name)) {
+    if (/战|阵亡|阵殁|战殁|殉国|殉城|殉职|赐死|鸩|自尽|自裁|自缢|处决|处死|斩|诛|凌迟|腰斩|弃市|绞|谋逆|伏诛|遇害|遭难|攻破|寿终|年高|老|薨逝|溘逝|病逝|病故|病殁|疾|疫|瘟疫|伤寒|天花|execute|execution|暴毙|暴卒|暴亡|猝死|猝亡/.test(r)) return { allow: true };
+    return { allow: false, ignore: true };   // 压力/忧愤等无厘头死因拦下·不改任何状态
+  }
+  // a) 硬性死因直放(含 onDismissal 映射的 execute·及暴毙/猝死/明正典刑等合理死因)
+  if (/战|阵亡|阵殁|战殁|殉国|死事|殉城|殉职|赐死|赐自尽|鸩|自尽|自裁|自缢|服毒|处决|处死|斩|诛|凌迟|腰斩|弃市|绞|瘟疫|天花|伤寒|疫病|溺|坠马|焚|雷击|谋逆|伏诛|遇害|遭难|攻破|炮|箭|execute|execution|暴毙|暴卒|暴亡|猝死|猝亡|明正典刑|正法|典刑/.test(r)) return { allow: true };
+  // b) 自然死亡预算
+  var _budget = 3;
+  var _turn = (typeof GM !== 'undefined' && GM) ? GM.turn : 0;
+  if (!GM._natDeathTurn) GM._natDeathTurn = _turn;
+  if (GM._natDeathTurn !== _turn) { GM._natDeathTurn = _turn; GM._natDeathBudget = _budget; }
+  if (GM._natDeathBudget == null) GM._natDeathBudget = _budget;
+  // c) 纯压力/忧愤 无 病/老 → 降级致仕
+  if (/压力|忧愤|郁愤|愁|恚|抑郁|心力交瘁|操劳|积劳/.test(r) && !/病|疾|老|年高|寿/.test(r)) return { allow: false, demote: '告病致仕' };
+  // d) 现任要员保护(仅拦「无厘头/无明确病由」死因·真实病故/战死/赐死等明确死因放行——杨涟都御史病故照常落死)
+  var _high = ch.officialTitle && /尚书|侍郎|都御史|御史大夫|巡抚|总督|督师|经略|阁臣|首辅|大学士|按察使|布政使/.test(ch.officialTitle);
+  if (_high && (ch.age || 0) < 60 && !/病|疾|疫|老|战|赐|斩|诛|execute|execution|暴|猝|死事|殉|狱/.test(r)) return { allow: false, demote: '告病致仕' };
+  // e) 青壮无明确病由
+  if ((ch.age || 0) < 45 && !/病|疾|疫|老/.test(r)) return { allow: false, demote: '告病致仕' };
+  // 高龄放行
+  if ((ch.age || 0) >= 60) return { allow: true };
+  // 默认:预算内放行·超预算降级
+  if (GM._natDeathBudget <= 0) return { allow: false, demote: '告病致仕' };
+  GM._natDeathBudget--;
+  return { allow: true };
+}
+
+// 降级:把不合理的死亡转成「告病致仕」·不占死亡数·保官职人事链不断
+function _demoteDeath(cd, ch, kind) {
+  if (!ch) return;
+  var G = (typeof GM !== 'undefined' && GM) ? GM : null;
+  var _r = String((cd && cd.reason) || '').slice(0, 36);
+  ch._retired = true;
+  ch._retiredTurn = G ? G.turn : 0;
+  ch._stressRetired = true;
+  ch._retireReason = (kind || '告病致仕') + '（' + _r + '）';
+  if (!Array.isArray(ch.careerHistory)) ch.careerHistory = [];
+  ch.careerHistory.push({ turn: G ? G.turn : 0, event: (kind || '告病致仕') + '：' + _r, action: 'retire' });
+  try {
+    if (typeof addEB === 'function') addEB('人事', ch.name + (kind || '告病致仕') + '（' + _r + '）·未殁');
+  } catch (_dE) {}
+  try {
+    if (typeof TM !== 'undefined' && TM.Chronicle && TM.Chronicle.record) TM.Chronicle.record({
+      turn: G ? G.turn : 0, date: G ? G._gameDate : '', type: '人事', title: ch.name + (kind || '告病致仕'),
+      content: ch.name + (kind || '告病致仕') + '：' + _r + '。圣意悯其劳瘁，准予归养。', category: '人事', tags: ['告病', '致仕', '人事']
+    });
+  } catch (_dE2) {}
+  return true;
+}
+
 function applyCharacterDeaths(p1) {
         // AI 可以让角色死亡（疾病、战死、暗杀等）
         if (p1.character_deaths && Array.isArray(p1.character_deaths)) {
           p1.character_deaths.forEach(function(cd) {
+            // ★2026-08-12 死亡合理性闸(批量入口):不合理死亡(压力/青壮无病由/超预算)降级致仕·玩家自然死因 ignore 拦下
+            try {
+              var _gd = _deathGuard(cd);
+              if (!_gd.allow) {
+                if (_gd.ignore) return;   // 玩家自然死因:不改任何状态·直接拦下
+                var _chG = (typeof _fuzzyFindChar === 'function' ? _fuzzyFindChar(cd.name) : null) || findCharByName(cd.name);
+                _demoteDeath(cd, _chG, _gd.demote || '告病致仕');
+                return;
+              }
+            } catch (_gdE) {}
             applyOneDeath(cd);
           });
         }
@@ -42,6 +118,14 @@ function applyOneDeath(cd) {
   if (!ch) return;
   // 唯一死亡 sink 必须幂等：同回合多个结构化入口指向同一人时，只执行一次级联/事件/声望结算。
   if (ch.alive === false || ch.dead === true) return;
+  // ★2026-08-12 死亡合理性闸(直调入口·与 applyCharacterDeaths 同闸):onDismissal 死亡路由等直调路径同样受保护
+  try {
+    var _gd1 = _deathGuard(cd);
+    if (!_gd1.allow) {
+      if (_gd1.ignore) return;   // 玩家自然死因:不改任何状态·直接拦下
+      _demoteDeath(cd, ch, _gd1.demote || '告病致仕'); return;
+    }
+  } catch (_gd1E) {}
   cd.name = ch.name || cd.name;
   ch.alive = false;
   ch.dead = true;
