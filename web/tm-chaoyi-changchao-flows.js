@@ -1143,6 +1143,15 @@ async function _cc3_open(opts) {
       if (!items) { console.warn('[cc3] _cc3_open agenda timeout -> fallback'); throw new Error('agenda timeout'); }
       AGENDA.length = 0;
       items.forEach(it => AGENDA.push(it));
+      // ★2026-08-12 记录已议议程(跨回合去重·治「朝议来来回回就那几件事」·_cc2_buildAgendaPrompt 读作负面清单)
+      try {
+        if (!GM._ccAgendaHistory) GM._ccAgendaHistory = [];
+        items.slice(0, 9).forEach(function (it) {
+          if (it && it.title) GM._ccAgendaHistory.push({ turn: GM.turn || 0, title: String(it.title).slice(0, 24) });
+        });
+        if (GM._ccAgendaHistory.length > 40) GM._ccAgendaHistory = GM._ccAgendaHistory.slice(-40);
+      } catch (_ccH) {}
+
       console.log('[cc3] _cc3_open·议程已载入·共 ' + AGENDA.length + ' 条', AGENDA);
     } catch (e) {
       console.error('[cc3] _cc3_open·buildAgenda 抛错', e);

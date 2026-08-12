@@ -595,11 +595,54 @@
         ch._recallReason = _reasonStr;
       }
     } else if (_tmReasonIsImprison(_reasonStr)) {
-      ch._imprisoned = true;
-      ch._imprisonedTurn = G.turn || 0;
-      ch._imprisonReason = _reasonStr;
-      // 同步官职状态：兵部尚书·下狱待决（不清官职·只标状态）
-      if (ch.officialTitle && !/下狱/.test(ch.officialTitle)) ch._origOfficialTitle = ch.officialTitle;
+      // ★2026-08-12 入狱闸(用户定调「不能每回合都判官员下狱·非必要不下狱」):
+      //   ①有源(玩家诏令/弹劾奏疏/朝议裁决点名·C2 同款判据)→ 放行(玩家意志·确定性执行);
+      //   ②无源(AI 自由发挥)→ 重罪(贪墨/谋逆/通敌/弑/篡/大逆等)且每回合 cap≤2 才入狱·否则降级「革职听勘」(可重新起用·不占牢位)。
+      var _judSrc = false;
+      try {
+        var _wg2 = global.TM && global.TM.__acaParts;
+        if (_wg2 && typeof _wg2._writeActionSourced === 'function') _judSrc = _wg2._writeActionSourced(G, aiOutput, ch, { excludeStructuredKey: 'personnel_changes', scanInputs: true });
+      } catch (_jse) {}
+      var _impHeavy = /贪|墨|贿|赃|谋逆|通敌|叛|弑|篡|政变|兵变|受贿|侵吞|亏空|诈|伪|欺|劫|盗|奸|不法|罪大恶极|巨贪|大逆|僭越|谋反/.test(_reasonStr);
+      // narrative 上下文补证:personnel 补录常丢罪名(「贪墨事发，下诏狱」→补录 change=下诏狱)——
+      //   该人名 ±60 字内有罪名词 → 视为重罪(防补录丢罪导致闸误放)
+      if (!_impHeavy && aiOutput) {
+        try {
+          var _ctxT = '';
+          ['shizhengji','shilu_text','zhengwen'].forEach(function (k) { if (aiOutput[k]) _ctxT += String(aiOutput[k]); });
+          var _nIdx = _ctxT.indexOf(charName);
+          if (_nIdx >= 0) {
+            var _seg = _ctxT.slice(Math.max(0, _nIdx - 30), _nIdx + 60);
+            if (/贪|墨|贿|赃|谋逆|通敌|叛|弑|篡|政变|兵变|受贿|侵吞|亏空|诈|伪|欺|劫|盗|奸|不法|大逆|僭越|谋反/.test(_seg)) _impHeavy = true;
+          }
+        } catch (_nhE) {}
+      }
+      var _impAllowed = _judSrc;
+      if (!_impAllowed) {
+        // 轻过(非重罪)一律不入狱:疑罪从轻·革职听勘(「非必要不下狱」·与预算无关)
+        if (!_impHeavy) {
+          _impAllowed = false;
+        } else {
+          if (G._imprisonBudget == null) { G._imprisonBudget = 2; G._imprisonBudgetTurn = G.turn || 0; }
+          if (G._imprisonBudgetTurn !== (G.turn || 0)) { G._imprisonBudgetTurn = G.turn || 0; G._imprisonBudget = 2; }
+          _impAllowed = G._imprisonBudget > 0;
+          if (_impAllowed) G._imprisonBudget--;
+        }
+      }
+      if (_impAllowed) {
+        ch._imprisoned = true;
+        ch._imprisonedTurn = G.turn || 0;
+        ch._imprisonReason = _reasonStr;
+        // 同步官职状态：兵部尚书·下狱待决（不清官职·只标状态）
+        if (ch.officialTitle && !/下狱/.test(ch.officialTitle)) ch._origOfficialTitle = ch.officialTitle;
+      } else {
+        // 降级:革职听勘(不占牢位·可重新起用·防牢满为患/无官可用·「非必要不下狱」)
+        ch._imprisoned = false;
+        ch._suspended = true;
+        ch._suspendTurn = G.turn || 0;
+        ch._suspendReason = (!_impHeavy ? '非必要·革职听勘' : '案由积压·暂缓收监') + '(' + _reasonStr + ')';
+        try { if (typeof global.addEB === 'function') global.addEB('刑狱', charName + ' ' + ch._suspendReason); } catch(_eI){}
+      }
     } else if (/流放|发配|戍边|充军|发配充军|遣戍|exile|banish/.test(_reasonStr)) {
       ch._exiled = true;
       ch._exileTurn = G.turn || 0;
@@ -612,7 +655,7 @@
       ch._fled = true;
       ch._missing = true;
     }
-    // 抄家通常与下狱/处决并发·独立 if (不互斥·一个动作可同时下狱+抄家)
+        // 抄家通常与下狱/处决并发·独立 if (不互斥·一个动作可同时下狱+抄家)
     // 抄家·触发真实财产清算（私产→内帑·含隐匿挖掘+亲族株连）
     var _confKey = _reasonStr;
     if (_confKey === '抄家' || /抄|籍没|没官|抄没|查抄|抄家/.test(_confKey)) {

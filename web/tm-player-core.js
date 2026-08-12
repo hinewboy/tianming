@@ -2307,6 +2307,8 @@ function openCharDetail(charName) {
     // 体魄沿用 ch.health (char-economy-engine 维护)
     var _hpQp = (typeof ch.health === 'number') ? Math.round(ch.health) : 80;
     h += '<span class="rwp-mini-tag imprison" style="font-size:10px;background:rgba(184,71,56,0.25);color:#e07a5f;" title="'+escHtml(ch._imprisonReason||'下狱')+'">诏狱·'+_heldQp+'月·体'+_hpQp+'</span>';
+    // ★2026-08-12 出狱入口(用户实机「没有找到出狱选项」):入狱官员卡片直接「下诏释放」
+    h += '<button class="qp-btn small" style="margin-left:6px;padding:2px 10px;font-size:11px;background:rgba(130,160,110,0.22);color:var(--celadon-300);" onclick="releasePrisoner(\''+escHtml(ch.name)+'\');">🔓 下诏释放</button>';
   }
   if (ch._exiled || ch.exiled) h += '<span class="rwp-mini-tag exile" style="font-size:10px;background:rgba(168,108,90,0.25);color:#c9a565;" title="'+escHtml(ch._exileReason||'流放')+'">流放</span>';
   if (ch._fled || ch._missing) h += '<span class="rwp-mini-tag fled" style="font-size:10px;background:rgba(138,122,94,0.25);color:#a08858;">逃亡</span>';
@@ -3421,3 +3423,24 @@ _tmPlayerGlobal.PlayerCore.VERSION = 1;
 if (typeof _tmPlayerGlobal.calcPromotionChance === 'undefined') {
   _tmPlayerGlobal.calcPromotionChance = calcPromotionChance;
 }
+
+// ★2026-08-12 出狱入口·治「大量官员入狱·没有出狱选项」(用户实机):
+//   入狱官员卡片「下诏释放」按钮回调·本地确定性释放(免罪开释·不耗AI·入编年/履历/好感)。
+function releasePrisoner(name) {
+  try {
+    var G = (typeof GM !== 'undefined' && GM) ? GM : null;
+    if (!G) { if (typeof toast === 'function') toast('存档未就绪'); return; }
+    var ch = (typeof findCharByName === 'function') ? findCharByName(name) : null;
+    if (!ch) { if (typeof toast === 'function') toast('未找到 ' + name); return; }
+    if (!(ch._imprisoned || ch.imprisoned)) { if (typeof toast === 'function') toast(name + ' 未在押'); return; }
+    ch._imprisoned = false; ch.imprisoned = false;
+    ch._imprisonedTurn = null; ch._imprisonReason = '';
+    ch._releaseReason = '奉诏赦免开释';
+    if (!Array.isArray(ch.careerHistory)) ch.careerHistory = [];
+    ch.careerHistory.push({ turn: G.turn || 0, event: '奉诏赦免开释' });
+    if (typeof addEB === 'function') { try { addEB('刑狱', '赦免释放 ' + name); } catch (_) {} }
+    if (typeof AffinityMap !== 'undefined' && AffinityMap.add) { try { AffinityMap.add(name, (typeof P !== 'undefined' && P.playerInfo && P.playerInfo.characterName) || '陛下', 12, '蒙赦释放·感恩'); } catch (_afE) {} }
+    if (typeof toast === 'function') toast('🔓 已下诏释放 ' + name + '（无罪开释·可重新起用）');
+  } catch (_rpE) { try { console.warn('[releasePrisoner] 异常:', _rpE && _rpE.message); } catch (_) {} }
+}
+if (typeof window !== 'undefined') window.releasePrisoner = releasePrisoner;

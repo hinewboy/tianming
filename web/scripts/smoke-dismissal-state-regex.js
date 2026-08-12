@@ -116,7 +116,7 @@ IMPRISON_CASES.forEach(reason => {
   const name = 'char_imp_pos_' + (i++);
   const ch = addChar(ctx, name);
   ctx.AIChangeApplier.onDismissal(name, reason);
-  assert(ch._imprisoned === true, `"${reason}" SHOULD set _imprisoned (got ${ch._imprisoned})`);
+  assert(ch._imprisoned === true || ch._suspended === true, `"${reason}" 识别为入狱类(入狱或按「非必要不下狱」降级停用·got i=${ch._imprisoned} s=${ch._suspended})`);
 });
 
 console.log('===== 释放·清 _imprisoned =====');

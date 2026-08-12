@@ -1127,13 +1127,25 @@ function _cc2_agendaSourceToItem(src, idx) {
 
 function _cc2_buildAgendaPrompt() {
   var p = '你是常朝议程编撰官。请为今日常朝后台生成 5-9 条奏报事务（玩家暂不可见，将按顺序一条一条登场）。\n';
+  // ★2026-08-12 治「朝议来来回回就那几件事」(用户实机·无限轮回感):近 12 次已议议程硬性负面清单——
+  //   同一议题不得重复登场(除非有实质新进展/玩家点名续议)·强制议程轮换·打破「请开科/弹劾同僚」循环。
+  var _ccHist = (typeof GM !== 'undefined' && GM && Array.isArray(GM._ccAgendaHistory)) ? GM._ccAgendaHistory : [];
+  if (_ccHist.length) {
+    var _ccBlock = _ccHist.slice(-12).map(function (h) { return '  - ' + (h.title || h.topic || '?') + (h.turn ? '〔T' + h.turn + '〕' : ''); }).join('\n');
+    p += '【最近已议议程·禁止再次作为新议程(除非该事有实质新进展或陛下点名续议)】\n' + _ccBlock + '\n';
+  }
   p += '当前：' + (typeof getTSText==='function'?getTSText(GM.turn):'T'+GM.turn) + '\n';
   var _agendaSources = (typeof _cc2_collectAgendaSources === 'function') ? _cc2_collectAgendaSources({ max: 18, includeHeld: false }) : [];
   if (_agendaSources.length) {
     p += '【常朝候选来源池——只作议题线索，禁止原文照搬为奏报正文】\n' + _cc2_formatAgendaSourcesForPrompt(_agendaSources, 18) + '\n';
   } else if (GM.currentIssues) {
-    var _pi = GM.currentIssues.filter(function(i){return i.status==='pending';}).slice(0,5);
-    if (_pi.length) p += '【待处理时政——只作议题线索，禁止原文照搬为奏报正文】\n' + _pi.map(function(i){return '  '+i.title+'：要点 '+(i.description||i.summary||i.brief||'').slice(0,42)+'；须改写为有司奏称';}).join('\n') + '\n';
+    // ★2026-08-12 冷却:已议 pending 2 回合内不再进朝议候选(治「来来回回就那几件事」·玩家未处理也不无限刷屏)
+    var _ccNowT = GM.turn || 0;
+    var _pi = GM.currentIssues.filter(function(i){return i.status==='pending' && (!i._ccDiscussedTurns || (_ccNowT - i._ccDiscussedTurns) >= 2);}).slice(0,5);
+    if (_pi.length) {
+      _pi.forEach(function(i){ i._ccDiscussedTurns = _ccNowT; });
+      p += '【待处理时政——只作议题线索，禁止原文照搬为奏报正文】\n' + _pi.map(function(i){return '  '+i.title+'：要点 '+(i.description||i.summary||i.brief||'').slice(0,42)+'；须改写为有司奏称';}).join('\n') + '\n';
+    }
   }
   // 【sc07 深化·D2 廷议批量接认知】给在场官员名录每人加短认知线索(念/对陛下/所求)·让批量生成的奏报反映各人 sc07 认知(短线索不撑爆 prompt)。
   var _cc2CogCue07 = function(nm){

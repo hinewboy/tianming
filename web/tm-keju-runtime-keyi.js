@@ -104,11 +104,32 @@ function openKeyiSession(opts) {
     }
     return true;
   });
-  if (attendees.length < 3) { toast('\u4EAC\u4E2D\u5B98\u5458\u4E0D\u8DB3\u4E09\u4EBA\u00B7\u65E0\u6CD5\u5F00\u79D1\u8BAE'); return; }
+  if (attendees.length < 3) {
+    // ★2026-08-12 治「让官员开科考都开不了」(用户实机·v1403 前存档官员流失·京中在职<3):
+    //   不再一刀切「无法开科议」——给皇帝「下诏特开科举」兜底(明制特旨开科·皇威-5·不耗精力·不依赖科议)。
+    var _goEdict = confirm('\u4EAC\u4E2D\u5728\u804C\u5B98\u5458\u4E0D\u8DB3\u4E09\u4EBA\uFF08\u73B0 ' + attendees.length + ' \u4EBA\uFF09\u00B7\u79D1\u8BAE\u65E0\u6CD5\u4E3E\u884C\u3002\n\n\u53EF\u3010\u4E0B\u8BEF\u7279\u5F00\u79D1\u4E3E\u3011\uFF08\u7687\u5A01-5 \u00B7 \u7687\u6743-3 \u00B7 \u4E0D\u8017\u7CBE\u529B\uFF09\u00B7\u793C\u90E8\u5373\u523B\u9886\u65E8\u7B79\u529E\u3002\n\u70B9\u300C\u786E\u5B9A\u300D\u7279\u5F00 \u00B7 \u70B9\u300C\u53D6\u6D88\u300D\u6682\u7F13\u3002');
+    if (!_goEdict) { toast('\u4EAC\u4E2D\u5B98\u5458\u4E0D\u8DB3\u4E09\u4EBA\u00B7\u5DF2\u6682\u7F13\u5F00\u79D1'); return; }
+    GM.keju._pendingProposal = pendingProposal;
+    GM.keju._pendingProposal.resolved = true;
+    toast('\uD83D\uDCDC \u4E0B\u8BEF\u7279\u5F00\u79D1\u4E3E\u00B7\u793C\u90E8\u9886\u65E8');
+    if (typeof startKejuByMethod === 'function') { startKejuByMethod('edict', { topicType: topicType }); return; }
+    toast('\u793C\u90E8\u9886\u65E8\u5F00\u79D1');
+    return;
+  }
 
   // 弹确认窗·不再挑人
   if (!confirm('\u5F00\u79D1\u8BAE\uFF1F\n\u5C06\u53EC\u96C6 ' + attendees.length + ' \u540D\u5728\u4EAC\u5B98\u5458\u8BAE\u300C' + _keyiTopicTitle(pendingProposal, '\u79D1\u8BAE\u8BAE\u9898') + '\u300D\u00B7\u8017\u7CBE\u529B 15\u3002')) return;
-  if (typeof _spendEnergy === 'function' && !_spendEnergy(15, '\u79D1\u8BAE')) { toast('\u7CBE\u529B\u4E0D\u8DB3'); return; }
+  if (typeof _spendEnergy === 'function' && !_spendEnergy(15, '\u79D1\u8BAE')) {
+    // ★2026-08-12 精力不足也给「下诏特开」兜底(明制特旨开科·不耗精力·不依赖科议)
+    var _goEdictE = confirm('\u7CBE\u529B\u4E0D\u8DB3\uFF08\u79D1\u8BAE\u9700 15 \u7CBE\u529B\uFF09\u3002\n\n\u53EF\u3010\u4E0B\u8BEF\u7279\u5F00\u79D1\u4E3E\u3011\uFF08\u4E0D\u8017\u7CBE\u529B \u00B7 \u7687\u5A01-5 \u00B7 \u7687\u6743-3\uFF09\u00B7\u793C\u90E8\u9886\u65E8\u7B79\u529E\u3002\n\u70B9\u300C\u786E\u5B9A\u300D\u7279\u5F00 \u00B7 \u70B9\u300C\u53D6\u6D88\u300D\u6682\u7F13\u3002');
+    if (!_goEdictE) { toast('\u7CBE\u529B\u4E0D\u8DB3\u00B7\u5DF2\u6682\u7F13\u5F00\u79D1'); return; }
+    GM.keju._pendingProposal = pendingProposal;
+    GM.keju._pendingProposal.resolved = true;
+    toast('\uD83D\uDCDC \u4E0B\u8BEF\u7279\u5F00\u79D1\u4E3E\u00B7\u793C\u90E8\u9886\u65E8');
+    if (typeof startKejuByMethod === 'function') { startKejuByMethod('edict', { topicType: topicType }); return; }
+    toast('\u793C\u90E8\u9886\u65E8\u5F00\u79D1');
+    return;
+  }
   GM.keju._pendingProposal = pendingProposal;
 
   KEYI_STATE = {

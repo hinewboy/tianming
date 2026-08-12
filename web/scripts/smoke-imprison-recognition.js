@@ -54,8 +54,8 @@ console.log('===== D·非入狱不误判(押解/拘谨/签押…) =====');
 // ── E. onDismissal 端到端·诏狱真入库 + 否定不入库 ──
 console.log('===== E·onDismissal 端到端 =====');
 function addChar(name) { const ch = { name, position: '兵部尚书', loyalty: 60, alive: true, faction: '明朝廷', resources: {} }; ctx.GM.chars.push(ch); return ch; }
-let c1 = addChar('张诏'); ctx.onDismissal('张诏', '命锦衣卫将张诏下诏狱待勘');
-assert(c1._imprisoned === true, 'onDismissal「下诏狱」应设 _imprisoned(原漏判)');
+let c1 = addChar('张诏'); ctx.onDismissal('张诏', '命锦衣卫将张诏以贪墨下诏狱待勘');
+assert(c1._imprisoned === true, 'onDismissal「下诏狱(贪墨·重罪)」应设 _imprisoned(原漏判)');
 assert(/诏狱/.test(c1._imprisonReason || ''), 'onDismissal 应留 _imprisonReason 含关键词');
 let c2 = addChar('李免'); ctx.onDismissal('李免', '幸免诏狱·仅夺俸');
 assert(!c2._imprisoned, 'onDismissal「幸免诏狱」不应设 _imprisoned');

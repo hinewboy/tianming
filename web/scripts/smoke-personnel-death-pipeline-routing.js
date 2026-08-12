@@ -148,7 +148,7 @@ console.log('===== G·非致死类直写 + 留痕通道 =====');
   const ctx = makeCtx();
   ctx.GM = baseGM([{ name: '钱谦益', officialTitle: '礼部尚书', position: '礼部尚书', alive: true, faction: '明朝廷', resources: {} }]);
   ctx.P = { playerInfo: {}, adminHierarchy: {} };
-  ctx.applyAITurnChanges({ shizhengji: '钱谦益下诏狱，待勘。' });
+  ctx.applyAITurnChanges({ shizhengji: '钱谦益下诏狱，因贪墨事发。' });
   const qian = ctx.GM.chars.find(c => c.name === '钱谦益');
   assert(qian._imprisoned === true, 'G1 下狱类经 onDismissal 直写·_imprisoned=true');
   assert(qian.alive !== false, 'G2 下狱不致死');

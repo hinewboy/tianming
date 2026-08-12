@@ -405,7 +405,10 @@
             // 去重·同人同 action 只记一次
             var key = name + '_' + action;
             if (mentioned.find(function(x){return x.key===key;})) continue;
-            mentioned.push({ key: key, name: name, action: action, verb: verb, raw: m[0] });
+            // ★2026-08-12 raw 加宽(±30字):匹配片段太短(「钱谦益下诏狱」·罪名被截)·入狱闸重罪判定失真——
+            //   带罪名上下文(如「…贪墨…下诏狱…」)让 onDismissal 的 _impHeavy 命中
+            var _rawCtx = narrativeText.slice(Math.max(0, m.index - 30), m.index + m[0].length + 30);
+            mentioned.push({ key: key, name: name, action: action, verb: verb, raw: _rawCtx });
           }
         });
       });
@@ -566,7 +569,8 @@
           }
         } else {
           // 非致死类·调 onDismissal·reason 用 verb 让函数内部 regex 命中状态分支
-          var r = onDismissal(ch.name, m.verb);
+          // ★2026-08-12 补录传原文 m.raw(含罪名·如「贪墨事发，下诏狱」→reason 带贪墨·入狱闸重罪判定不失真)
+          var r = onDismissal(ch.name, m.raw || m.verb);
           if (r && r.ok) {
             patched++;
             if (global.addEB) global.addEB('校验补录', '人事校验器·' + ch.name + '『' + m.verb + '』补录入库(原文: ' + m.raw + ')');
