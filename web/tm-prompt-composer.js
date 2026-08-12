@@ -299,10 +299,8 @@ function buildAiPersonaText(char, options) {
         }).join('、'));
       }
     } catch(_){}
-    // 时代信息 (sc1/sc1d/sc2/sc27 都要)
-    try {
-      if (GMRef.turn) parts.push('【本回合】T' + GMRef.turn);
-    } catch(_){}
+    // T1394·回合号已由 dynMid 时空约束(_buildTemporalConstraint)注入·此处重复且每回合变
+    //   → 曾在稳定段 stableRules 制造缓存断点(前缀第 818 字符断·其后全 miss)·移除。
     // 主要势力快照 (sc1c/sc15/sc16/sc28 都要)
     try {
       var facs = (GMRef.facs || []).filter(function(f){ return f && !f.player; }).slice(0, 10);

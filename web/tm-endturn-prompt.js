@@ -2284,7 +2284,12 @@
           if (_frags[_fi].position === 'prefix') _prefixText += _frags[_fi].text;
           else _suffixText += _frags[_fi].text;
         }
-        sysP = _prefixText + sysP + _suffixText;
+        // T1394·缓存断点修复：suffix fragments(party-class-calibration 等·含回合号诊断/因果综述)
+        //   原在 _mark 前拼入 sysP → 全部落入 stableHead 段 → 回合号一变 → DeepSeek 前缀缓存
+        //   从第 1 段就断(实测命中率17%)。改为仅 prefix 立即拼入·suffix 延后到 _mark('tail')
+        //   之后单独成段 fragSuffix(动态区末尾·不进稳定组·裁剪档自然省掉·FULL 保持行为)。
+        sysP = _prefixText + sysP;
+        global.__fragSuffixText = _suffixText;
       }
     } catch(_fragE) { try { console.warn('[prompt.build] collect fragments failed', _fragE); } catch(_){} }
 
@@ -3682,6 +3687,8 @@
     if (GM.currentIssues && GM.currentIssues.length > 0) {
       var _pendingIssues = GM.currentIssues.filter(function(i) { return i.status === 'pending'; });
       if (_pendingIssues.length > 0) {
+        // T1394·动态内容独立成段(不进稳定组·防缓存断点)：current_issues 含回合号/每回合变
+        _mark('dynIssues');
         sysP += '\n\n\u3010\u5F53\u524D\u65F6\u5C40\u8981\u52A1\u2014\u2014\u5F85\u89E3\u51B3\u3011';
         _pendingIssues.forEach(function(iss) {
           var _issAuth = iss.authorityLevel || 'ai_analysis';
@@ -4115,6 +4122,13 @@
     // [1A·sysBlocks·2026-06-02] 收尾：闭合最后一段 + 组装 sysBlocks + 运行时 diff=0 自检。
     // 任何失配 → 放弃分块、回退整条 sysP(1B/1C 见 _segs=null 即用全量·不省字但安全)。
     _mark('tail');
+    // T1394·suffix fragments 独立成段(动态区末尾·不进稳定组)：保住 FULL 行为(因果综述/趋势预演)·
+    //   同时不再污染 stableHead 稳定前缀(回合号断点)·裁剪档(REVIEW/NARR 等)自然省掉这部分。
+    try {
+      var _fragSfx = global.__fragSuffixText || '';
+      if (_fragSfx) { sysP += _fragSfx; _mark('fragSuffix'); }
+    } catch (_fragSfxE) {}
+    global.__fragSuffixText = '';
     var _recon = _segs.map(function(_s){ return _s.text; }).join('');
     if (_recon === sysP) {
       if (sysP.length > _sysPMaxChars) {
