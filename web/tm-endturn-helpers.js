@@ -659,8 +659,13 @@ function _composeLocalTurnSummary(ctx) {
         .filter(function (n) { return n && n.length >= 2 && String(text).indexOf(n) >= 0; })
         .sort(function (a, b) { return b.length - a.length; });
       if (_names.length) return { name: _names[0], change: _m[0] };
+      // 兜底(名册缺失·防御):before 优先(动词前 2-3 字·"袁崇焕迁蓟辽督师"形态·防 after 把官职当名字)
+      var _before = String(text).slice(0, _m.index);
+      var _bm = _before.match(/([^\s：:，,、。]{2,3})$/);
+      if (_bm) return { name: _bm[1], change: _m[0] };
+      // 兜底:动词后 2-3 字("罢胡廷晏"形态·汉名主长度·不带介词边界防"胡廷晏陕西"截断失败)
       var _after = String(text).slice(_m.index + _m[0].length);
-      var _am = _after.match(/^([^\s：:，,、。]{2,4})(?=为|任|、|，|,|$|：|:)/);
+      var _am = _after.match(/^([^\s：:，,、。]{2,3})/);
       if (_am) return { name: _am[1], change: _m[0] };
       return null;
     }
