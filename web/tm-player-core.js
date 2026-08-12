@@ -364,7 +364,11 @@ function switchGTab(btn,panelId){
   // 切换到诏令tab时刷新建议库
   if(panelId==='gt-edict' && typeof _renderEdictSuggestions==='function') _renderEdictSuggestions();
   // 切换到鸿雁传书tab时刷新面板
-  if(panelId==='gt-letter' && typeof renderLetterPanel==='function') renderLetterPanel();
+  // ★2026-08-12 与其他面板一致·鸿雁渲染包 try-catch：此前裸调——renderLetterPanel 在异常存档数据下抛错
+  //   → switchGTab onclick 链静默中断 = 「点击鸿雁没反应」·包住后至少面板能切·错误可见可诊。
+  if(panelId==='gt-letter' && typeof renderLetterPanel==='function') {
+    try { renderLetterPanel(); } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'LetterPanel') : console.error('[LetterPanel]', e); if (typeof toast === 'function') { try { toast('鸿雁面板渲染异常·详见控制台'); } catch(_){} } }
+  }
   if(panelId==='gt-renwu' && typeof renderRenwu==='function') {
     try { renderRenwu(true); } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'Renwu') : console.error('[Renwu]', e); }
   }

@@ -228,6 +228,14 @@ function _openShizhengDetail(issueId) {
       h += '</button>';
     });
     h += '</div>';
+  } else if (isPending) {
+    // ★2026-08-12 信息条/无选项案可结案:国变告警·查案回报·密探回禀·agent 分析等(盖「省览」章·无 choices)
+    //   此前只能点开再返回·永远滞留列表=「案子处理不掉」。加「已悉·结案」令其可归档。
+    h += '<div style="margin-bottom:1.2rem;text-align:center;">';
+    h += '<div style="font-size:0.78rem;color:var(--celadon-400,#7eb8a7);letter-spacing:0.28em;margin-bottom:0.5rem;font-family:\'STKaiti\',\'KaiTi\',serif;">〔 省 览 已 悉 · 无 须 拍 板 〕</div>';
+    var safeIid2 = String(issue.id || '').replace(/'/g, "\\'");
+    h += '<button class="bt" style="display:inline-block;padding:0.5rem 2.2rem;background:rgba(106,154,127,0.12);border:1px solid rgba(106,154,127,0.55);color:#7eb8a7;cursor:pointer;border-radius:3px;letter-spacing:0.2em;font-family:\'STKaiti\',\'KaiTi\',serif;" onclick="if(typeof _ackShizhengIssue===\'function\'){document.getElementById(\'shizheng-task-detail\').remove();document.getElementById(\'shizheng-tasks-overlay\')&&document.getElementById(\'shizheng-tasks-overlay\').remove();_ackShizhengIssue(\''+safeIid2+'\');}">已 悉 · 结 案</button>';
+    h += '</div>';
   }
 
   // 解决时间（若已决）
@@ -251,6 +259,36 @@ function _openShizhengDetail(issueId) {
   det.appendChild(panel);
   document.body.appendChild(det);
 }
+
+// ★2026-08-12 信息条/无选项案「已悉·结案」:国变告警·查案回报·密探回禀·agent 分析等(无 choices·盖「省览」章)
+//   此前无处理入口·永远滞留「览」区=玩家报「御案时政的案子处理不掉」。结案=归档 resolved·从待决列表消失。
+function _ackShizhengIssue(issueId) {
+  try {
+    var GM = window.GM || {};
+    var issue = (GM.currentIssues||[]).find(function(i){ return String(i.id) === String(issueId); });
+    if (!issue) { if (typeof toast === 'function') toast('议题已失效'); return; }
+    if (issue.status === 'resolved') { if (typeof openShizhengTasks === 'function') openShizhengTasks(); return; }
+    issue.status = 'resolved';
+    issue.resolvedTurn = GM.turn || 1;
+    issue.resolvedDate = GM._gameDate || '';
+    issue._acknowledged = true;
+    issue.acknowledged = true;
+    // 编年留档
+    try {
+      if (typeof TM !== 'undefined' && TM.Chronicle && TM.Chronicle.record) TM.Chronicle.record({
+        turn: GM.turn || 1, date: GM._gameDate || '',
+        type: '省览已悉', title: '御案省览：' + String(issue.title || '').slice(0, 24),
+        content: '陛下省览「' + String(issue.title || '').slice(0, 30) + '」，已知悉，无须拍板。',
+        category: '政事', tags: ['省览', '已悉', '结案']
+      });
+    } catch(_){}
+    if (typeof toast === 'function') toast('已悉·结案：' + String(issue.title || '').slice(0, 20));
+    setTimeout(function(){ if (typeof openShizhengTasks === 'function') openShizhengTasks(); }, 60);
+  } catch (_ackE) {
+    try { if (typeof toast === 'function') toast('结案失败'); } catch(_){}
+  }
+}
+if (typeof window !== 'undefined') window._ackShizhengIssue = _ackShizhengIssue;
 
 function _shizhengConvene(issueId) {
   var GM = window.GM || {};

@@ -668,6 +668,11 @@ async function _endTurnCore(){
 //  注册 endTurn 钩子（替代原有的包装链）
 // ============================================================
 
+// 钩子 0.5: 朝议/廷议决议确定性落实（推演前结算——2026-08-12 根治「议定救灾无后续动作」）
+EndTurnHooks.register('before', function() {
+  try { if (typeof ChronicleTracker !== 'undefined' && ChronicleTracker.settleCourtResolutions) ChronicleTracker.settleCourtResolutions(); } catch(_scrE) { try{ window.TM&&TM.errors&&TM.errors.captureSilent(_scrE,'settleCourtResolutions'); }catch(_){} }
+}, '朝议决议落实');
+
 // 钩子 1: 官制消耗（原 _origEndTurn）
 EndTurnHooks.register('before', function() {
   if(P.officeConfig&&P.officeConfig.costVariables&&P.officeConfig.costVariables.length>0&&GM.officeTree){

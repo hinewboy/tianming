@@ -47,6 +47,10 @@ function applyOneDeath(cd) {
   ch.dead = true;
   ch.deathTurn = GM.turn;
   ch.deathReason = cd.reason;
+  // ★2026-08-12 死因本地扩写(零 AI):依据 reason 关键词+本地数据拼「死因背景」——
+  //   玩家报"官员突然去世·面板无死因"·此处把 AI 一句式死因扩成有背景的墓志式描述。
+  //   仅当 reason 非空时生成(applyOneDeath 入口已挡 !reason)·存 deathContext 供面板/编年使用。
+  try { ch.deathContext = _composeDeathContext(ch, cd.reason); } catch(_dcE) { try{ ch.deathContext = String(cd.reason||'').slice(0,80); }catch(_){} }
   // ★ 死者不再任职·须清官衔(2026-07-04)：此前只摘 officeTree holder(下方 42-53)却留 ch.officialTitle
   //   → 任何读 officialTitle 又不滤 alive 的 UI/名册把死者显示成"现任陕西巡抚"(玩家报"死人还在任")。
   //   与 onDismissal(tm-ai-change-applier.js:646-651)对齐；殁前官衔存 positionAtDeath 供墓志铭/图志「原任X」。
@@ -262,4 +266,48 @@ function applyOneDeath(cd) {
       GM._playerDeathReason = cd.reason;
     }
   }
+}
+
+// ★2026-08-12 死因本地扩写·零 AI:把 AI 一句式 deathReason 扩成带背景的墓志式描述。
+//   数据全部来自本地(ch 字段)·关键词分类 + 任上/里居 + 享年 + 身后·供人物面板「去世缘由」展示。
+function _composeDeathContext(ch, reason) {
+  var r = String(reason || '').trim();
+  var part = '';
+  // 死因分类(按关键词·宁缺勿错)
+  var _rules = [
+    [/病|疾|瘵|恙|咯血|沉疴/, '病逝'],
+    [/老|寿|年高|寿终|天年/, '寿终正寝'],
+    [/战|阵亡|阵殁|殁于阵|战殁|殉国|死事|血战|中箭|中炮|兵败/, '殁于王事'],
+    [/赐死|鸩|缢|自尽|自裁|赐帛|白绫/, '赐死/自尽'],
+    [/斩|诛|杀|杖毙|处决|凌迟|腰斩/, '伏诛'],
+    [/疫|瘟|天花|伤寒/, '染疫而亡'],
+    [/坠|溺水|溺|焚|火烧|马惊|坠马|雷击|意外/, '意外身故'],
+    [/饿|饥|乏食/, '饥馁而亡'],
+    [/忧|郁|愤|恚|愁/, '忧愤而卒'],
+    [/伤|创|金疮/, '伤重不治']
+  ];
+  for (var i = 0; i < _rules.length; i++) {
+    if (_rules[i][0].test(r)) { part = _rules[i][1]; break; }
+  }
+  if (!part) part = '卒';
+  var s = part + '（' + r.slice(0, 40) + '）';
+  // 任上/里居:有原任官职且死于任地附近 → 任上;否则里居
+  var _pos = ch.positionAtDeath || ch._positionAtDismiss || '';
+  var _loc = ch.location || '';
+  var _capital = (typeof GM !== 'undefined' && GM && GM._capital) || '';
+  if (_pos) {
+    var _onPost = _loc && _capital && _loc !== _capital ? true : false;
+    s += '，殁于' + (_onPost ? _pos + '任上' : '任所') + '。';
+  } else if (_loc) {
+    s += '，殁于' + _loc + '。';
+  } else {
+    s += '。';
+  }
+  // 享年
+  if (ch.age) s += '享年' + ch.age + '岁。';
+  // 身后
+  var _kids = Array.isArray(ch.children) ? ch.children.length : 0;
+  if (_kids > 0) s += '有子' + _kids + '人。';
+  else if (ch.spouse) s += '遗孀在堂。';
+  return s;
 }

@@ -187,10 +187,100 @@
       try { _collectFromProjects(); } catch(e){ (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'Chronicle') : console.warn('[Chronicle] project:', e.message); }
       try { _collectFromPendingMemorials(); } catch(e){ (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'Chronicle') : console.warn('[Chronicle] memorial:', e.message); }
       try { _cleanupStale(); } catch(e){try{window.TM&&TM.errors&&TM.errors.captureSilent(e,'tm-chronicle-tracker');}catch(_){}}
+    },
+
+    // ★2026-08-12 朝议/廷议决议确定性落实·由 EndTurnHooks before(推演前)调用·每回合一次:
+    //   根因——玩家报「朝堂说好救灾·后续无动作」:此前决议只挂 tracker 给 AI 看·账本全靠 AI 自觉·不落地。
+    //   本方法把「待落实」决议逐回合推进·生成落实记录(_courtResolutionLog 进推演 prompt)·到期确定性结算账本。
+    settleCourtResolutions: function() {
+      var G = global.GM;
+      if (!G || !Array.isArray(G._chronicleTracks)) return;
+      var tracks = G._chronicleTracks.filter(function(t){ return t && t.status === 'active' && (t.type === 'changchao_pending' || t.type === 'tingyi_pending' || t.type === 'chaoyi_pending'); });
+      if (tracks.length === 0) return;
+      if (!Array.isArray(G._courtResolutionLog)) G._courtResolutionLog = [];
+      var turn = G.turn || 1;
+      tracks.forEach(function(t) {
+        var span = Math.max(1, (t.expectedEndTurn || turn + 8) - (t.startTurn || turn));
+        var inc = Math.max(8, Math.round(100 / span));
+        if (t.expectedEndTurn && turn > t.expectedEndTurn) {
+          var over = turn - t.expectedEndTurn;
+          if (over > Math.ceil(span * 0.5)) { ChronicleTracker.complete(t.id, '逾期从权·事已办结'); return; }
+          inc = Math.max(inc, 15);
+        }
+        var prog = Math.min(100, (t.progress || 0) + inc);
+        if (prog >= 100) {
+          G._courtResolutionLog.push({ turn: turn, id: t.id, title: t.title, kind: t.category || '', note: _courtResolutionNote(t, 100), done: true });
+          ChronicleTracker.complete(t.id, _courtSettleEffects(t));
+        } else {
+          G._courtResolutionLog.push({ turn: turn, id: t.id, title: t.title, kind: t.category || '', note: _courtResolutionNote(t, prog), done: false });
+          ChronicleTracker.update(t.id, { progress: prog, currentStage: prog >= 60 ? '施行过半' : '颁诏推行' });
+        }
+      });
+      if (G._courtResolutionLog.length > 40) G._courtResolutionLog = G._courtResolutionLog.slice(-40);
     }
   };
 
   // ───────── 采集器 ─────────
+
+  // ★2026-08-12 朝议落实辅助·本地拼装零 AI
+  function _courtResolutionNote(t, prog) {
+    var tt = String(t.title || t.narrative || '');
+    var _doer = t.actor || '';
+    var _d = _doer ? '·主理' + _doer : '';
+    if (/赈|抚|蠲|灾|饥|旱/.test(tt)) return (prog >= 100 ? '赈济告竣' : '赈济施行中') + _d;
+    if (/工|修|筑|河|漕|疏|营|营造/.test(tt)) return (prog >= 100 ? '工程告成' : '营作进行') + _d;
+    if (/边|军|兵|防|督师|经略|募/.test(tt)) return (prog >= 100 ? '边备整饬完竣' : '边备整饬中') + _d;
+    if (/变|盐|茶|钱|科|察|吏|屯田|开海/.test(tt)) return (prog >= 100 ? '新政推行见效' : '新政推行中') + _d;
+    return (prog >= 100 ? '事已办结' : '办理中') + _d;
+  }
+
+  function _courtFindProvince(tt) {
+    var G = global.GM;
+    var _keys = [];
+    try { if (G && G.provinceStats) _keys = Object.keys(G.provinceStats); } catch(_){}
+    var _common = ['北直隶','南直隶','陕西','山西','山东','河南','湖广','浙江','江西','福建','广东','广西','四川','云南','贵州','辽东','宣府','大同'];
+    var pool = _keys.concat(_common);
+    for (var i = 0; i < pool.length; i++) {
+      var k = pool[i];
+      if (k && tt.indexOf(k) >= 0) return k;
+    }
+    return null;
+  }
+
+  // 到期确定性结算:赈抚→省民变降+帑银支出·边事→军备升·其余记编年(供 AI 演绎)
+  function _courtSettleEffects(t) {
+    var G = global.GM;
+    var tt = String(t.title || t.narrative || '');
+    var _note = '';
+    if (/赈|抚|蠲|灾|饥|旱/.test(tt)) {
+      var _provHit = _courtFindProvince(tt);
+      if (_provHit && G && G.provinceStats && G.provinceStats[_provHit]) {
+        var _ps = G.provinceStats[_provHit];
+        _ps.unrest = Math.max(0, Math.round((_ps.unrest || 20) - 9));
+        _note = _provHit + '民变 -9';
+      }
+      var _cost = 150000 + Math.round(Math.random() * 100000);
+      var _sk = (G && G.neitang) || (G && G.neicang);
+      if (_sk && typeof _sk.money === 'number') _sk.money = Math.max(0, _sk.money - _cost);
+      else if (G && G.guoku && typeof G.guoku.money === 'number') G.guoku.money = Math.max(0, G.guoku.money - _cost);
+      _note += (_note ? '·' : '') + '拨帑' + Math.round(_cost/10000) + '万两';
+    } else if (/边|军|兵|防|督师|经略/.test(tt)) {
+      if (G && G.eraState) G.eraState.militaryProfessionalism = Math.min(1, (G.eraState.militaryProfessionalism || 0.5) + 0.015);
+      _note = '军备整饬·专业化 +1.5%';
+    } else {
+      _note = '事体已行·详见编年';
+    }
+    try {
+      if (typeof TM !== 'undefined' && TM.Chronicle && TM.Chronicle.record) TM.Chronicle.record({
+        turn: G && G.turn, date: (G && G._gameDate) || '',
+        type: '决议落实', title: '朝议决议办结：' + String(t.title || '').slice(0, 24),
+        content: '朝议所定「' + String(t.title || '').slice(0, 30) + '」事已办结。' + _note,
+        category: '政事', tags: ['朝议', '落实', '办结']
+      });
+    } catch(_){}
+    if (typeof addEB === 'function') { try { addEB('政事', '朝议决议办结：' + String(t.title || '').slice(0, 20) + '（' + _note + '）'); } catch(_){} }
+    return '已办结·' + _note;
+  }
 
   function _collectFromKeju() {
     var G = global.GM, P = global.P;

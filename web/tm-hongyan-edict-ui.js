@@ -296,9 +296,9 @@ function _publishEdictDirect() {
   var styleLabel = ({elegant:'\u5178\u96C5', concise:'\u7B80\u6D01', ornate:'\u534E\u4E3D', plain:'\u767D\u8BDD'})[style] || '\u5178\u96C5';
   var _thisTurnPolish = GM.edicts.filter(function(e) { return e.turn === _curTurn && e.source === 'polish'; });
   var polishVersion = _thisTurnPolish.length + 1;
-  GM.edicts.forEach(function(e) { // arch-ok 诏书发布写口·同回合旧颁行回落手稿
-    if (e.turn === _curTurn && e.status === 'promulgated') e.status = 'draft';
-  });
+  // ★2026-08-12 多道颁行并存:去掉「同回合旧颁行回落手稿」——玩家一回合连发多道诏书(免职/赈灾/军令)
+  //   此前旧颁行全被回落 draft→prep 只注入最后一道→前面的「不存在」(用户报「很多圣旨没执行·反复不存在一样」)。
+  //   现在每道颁行都保留 promulgated·prep 端 _thisTurnPromulgated 已 join 合并全部文本进 edicts.decree。
   var formalApplied = false;
   try {
     var formalBridge = window.TMPhase8FormalBridge && window.TMPhase8FormalBridge.drafts;
@@ -326,6 +326,19 @@ function _publishEdictDirect() {
     _chainEffects: []
   };
   GM.edicts.push(rec);
+  // ★2026-08-12 颁行反馈(同 _applyPolishedEdict·诏付有司直达颁行也提示可执行动作)
+  try {
+    if (typeof extractEdictActions === 'function') {
+      var _eaPd = extractEdictActions(text);
+      var _pdParts = [];
+      if (_eaPd.appointments && _eaPd.appointments.length) _pdParts.push('\u4EFB\u547D' + _eaPd.appointments.length + '\u4EBA');
+      if (_eaPd.dismissals && _eaPd.dismissals.length) _pdParts.push('\u514D\u804C' + _eaPd.dismissals.length + '\u4EBA');
+      if (_eaPd.rewards && _eaPd.rewards.length) _pdParts.push('\u8D4F\u8D50' + _eaPd.rewards.length + '\u4EBA');
+      if (_eaPd.pardons && _eaPd.pardons.length) _pdParts.push('\u8D66\u514D' + _eaPd.pardons.length + '\u4EBA');
+      if (_pdParts.length) toast('\u2713 \u5DF2\u8BC6\u522B\u53EF\u6267\u884C\u52A8\u4F5C\uFF1A' + _pdParts.join('\u00B7') + '\uFF08\u8FC7\u56DE\u5408\u751F\u6548\uFF09');
+      else toast('\u672C\u8BCF\u5168\u6587\u5C06\u5165\u63A8\u6F14\u00B7\u672A\u8BC6\u522B\u5230\u53EF\u81EA\u52A8\u6267\u884C\u7684\u4EFB\u514D\u8D4F\u8D50\u00B7\u7531\u63A8\u6F14\u914C\u60C5\u529E\u7406');
+    }
+  } catch (_eaPdE) {}
   if (!GM.qijuHistory) GM.qijuHistory = [];
   var _headline = '\u3010\u8BCF\u4E66\u00B7\u9881\u884C\u5929\u4E0B\u00B7\u76F4\u63A5\u8BCF\u4ED8\u6709\u53F8\u00B7' + styleLabel + '\u3011';
   if (typeof TM !== 'undefined' && TM.Qiju) TM.Qiju.recordEntry({
@@ -381,10 +394,7 @@ function _applyPolishedEdict(mode) {
   var status;
   if (mode === 'replace') {
     status = 'promulgated';
-    // 同回合之前已颁行的·回落为"诏书手稿"(被后润色稿替代)
-  GM.edicts.forEach(function(e) { // arch-ok 诏书发布写口·同回合旧颁行回落手稿 {
-      if (e.turn === _curTurn && e.status === 'promulgated') e.status = 'draft';
-    });
+    // ★2026-08-12 多道颁行并存:不再回落同回合旧颁行(根因同上·玩家连发多道诏书时前面的不能被覆盖成手稿)
     var formalApplied = false;
     try {
       var formalBridge = window.TMPhase8FormalBridge && window.TMPhase8FormalBridge.drafts;
@@ -403,6 +413,20 @@ function _applyPolishedEdict(mode) {
       });
     }
     toast('\u8BCF\u4E66\u9881\u884C\u5929\u4E0B\u00B7\u4F5C\u4E3A\u4E00\u9053\u8BCF\u4E66\u6574\u4F53\u9881\u884C\u00B7\u5F52\u6863\u8D77\u5C45\u6CE8');
+    // ★2026-08-12 颁行反馈:试解析本诏·明示哪些动作确定性执行·哪些交 AI 推演——治「圣旨没执行/没反馈·反复不存在一样」
+    try {
+      if (typeof extractEdictActions === 'function') {
+        var _eaFb = extractEdictActions(text);
+        var _eaParts = [];
+        if (_eaFb.appointments && _eaFb.appointments.length) _eaParts.push('\u4EFB\u547D' + _eaFb.appointments.length + '\u4EBA');
+        if (_eaFb.dismissals && _eaFb.dismissals.length) _eaParts.push('\u514D\u804C' + _eaFb.dismissals.length + '\u4EBA');
+        if (_eaFb.rewards && _eaFb.rewards.length) _eaParts.push('\u8D4F\u8D50' + _eaFb.rewards.length + '\u4EBA');
+        if (_eaFb.pardons && _eaFb.pardons.length) _eaParts.push('\u8D66\u514D' + _eaFb.pardons.length + '\u4EBA');
+        if (_eaFb.deaths && _eaFb.deaths.length) _eaParts.push('\u5904\u6B7B' + _eaFb.deaths.length + '\u4EBA');
+        if (_eaParts.length) toast('\u2713 \u5DF2\u8BC6\u522B\u53EF\u6267\u884C\u52A8\u4F5C\uFF1A' + _eaParts.join('\u00B7') + '\uFF08\u8FC7\u56DE\u5408\u751F\u6548\uFF09');
+        else toast('\u672C\u8BCF\u5168\u6587\u5C06\u5165\u63A8\u6F14\u00B7\u672A\u8BC6\u522B\u5230\u53EF\u81EA\u52A8\u6267\u884C\u7684\u4EFB\u514D\u8D4F\u8D50\u00B7\u7531\u63A8\u6F14\u914C\u60C5\u529E\u7406');
+      }
+    } catch (_eaFbE) {}
   } else {
     status = 'draft';
     toast('\u8BCF\u4E66\u5DF2\u7F16\u8BA2\u5165\u6863\u00B7\u672A\u9881\u884C\uFF08\u8BCF\u4E66\u624B\u7A3F\uFF09');

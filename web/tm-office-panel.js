@@ -1047,11 +1047,39 @@ function _offGetCharInfo(charName) {
       if (n.subs) _scan(n.subs, n.name);
     });
   })(GM.officeTree||[]);
+  // ★2026-08-12 履历丰富化:合并 ch.careerHistory(AI careerEvent·奉诏就任/免职/考课升黜等·此前完全没显示)
+  //   —— 用户报「履历不够丰富·升迁降职没写清」·根因即此处只看职位树 _history·careerHistory 被丢。
+  if (Array.isArray(ch.careerHistory)) {
+    ch.careerHistory.forEach(function(h) {
+      if (!h || h.turn == null) return;
+      var _ev = String(h.event || '').trim();
+      if (!_ev) return;
+      info.career.push({
+        dept: '', pos: _ev, rank: '',
+        from: h.turn, to: (h.turn || 0) + 1, current: false,
+        reason: h.action || _ev, _fromCareer: true
+      });
+    });
+  }
   info.career.sort(function(a,b) { return (a.from||0) - (b.from||0); });
   return info;
 }
 
 /** 渲染仕途时间线HTML（供char-popup/viewRenwu/offShowCareer共用） */
+// ★2026-08-12 履历标记推断·本地规则零 AI:按 reason/action/事件文本判定升/降/调/罢/致仕/殁
+function _offCareerBadge(c) {
+  var t = String(c.reason || c.pos || c.event || '');
+  if (/(dismiss|免职|罢免|革职|革任|削籍|罢官|斥)/.test(t)) return ['罢免','var(--vermillion-400)'];
+  if (/(demote|左迁|降|贬|谪)/.test(t)) return ['左迁','var(--orange,#e67e22)'];
+  if (/(appoint|就任|升|擢|迁|加(?:官|衔)|擢任)/.test(t)) return ['擢任','var(--gold-400)'];
+  if (/(transfer|调任|改任|平调|移)/.test(t)) return ['调任','var(--blue,#5b8db8)'];
+  if (/(retire|致仕|乞休|归老)/.test(t)) return ['致仕','var(--ink-300)'];
+  if (/(exile|流放|戍)/.test(t)) return ['流放','var(--purple,#9b59b6)'];
+  if (/(imprison|下狱|逮|收监)/.test(t)) return ['下狱','var(--ink-300)'];
+  if (/(death|身故|殁|卒)/.test(t)) return ['殁','var(--ink-300)'];
+  return null;
+}
+
 function _offRenderCareerHTML(charName) {
   var info = _offGetCharInfo(charName);
   if (!info) return '';
@@ -1090,11 +1118,13 @@ function _offRenderCareerHTML(charName) {
     html += '<div style="margin-top:var(--space-2);">';
     html += '<div style="font-size:var(--text-xs);color:var(--gold-400);font-weight:var(--weight-bold);margin-bottom:var(--space-1);">\u4ED5\u9014</div>';
     info.career.forEach(function(c) {
+      // ★2026-08-12 履历丰富化:按原因推断升/降/调/罢标记(本地规则·零 AI)——明制仕途一目了然
+      var _bdg = _offCareerBadge(c);
       var fromDate = c.from ? ((typeof getTSText === 'function') ? getTSText(c.from) : 'T' + c.from) : '?';
-      var toDate = c.current ? '\u5728\u4EFB' : (c.to ? ((typeof getTSText === 'function') ? getTSText(c.to) : 'T' + c.to) : '?');
+      var toDate = c.current ? '在任' : (c.to ? ((typeof getTSText === 'function') ? getTSText(c.to) : 'T' + c.to) : '?');
       html += '<div style="padding:2px var(--space-2);border-left:2px solid ' + (c.current ? 'var(--gold-400)' : 'var(--color-border-subtle)') + ';margin-bottom:2px;">';
-      html += '<div style="font-size:0.7rem;font-weight:' + (c.current ? 'var(--weight-bold)' : 'normal') + ';color:' + (c.current ? 'var(--gold-400)' : 'var(--color-foreground)') + ';">' + escHtml(c.dept) + ' · ' + escHtml(c.pos) + (c.rank ? ' (' + escHtml(c.rank) + ')' : '') + '</div>';
-      html += '<div style="font-size:0.66rem;color:var(--color-foreground-muted);">' + fromDate + ' → ' + toDate + (c.reason ? ' · ' + escHtml(c.reason) : '') + '</div>';
+      html += '<div style="font-size:0.7rem;font-weight:' + (c.current ? 'var(--weight-bold)' : 'normal') + ';color:' + (c.current ? 'var(--gold-400)' : 'var(--color-foreground)') + ';">' + (c.dept ? escHtml(c.dept) + ' · ' : '') + escHtml(c.pos) + (c.rank ? ' (' + escHtml(c.rank) + ')' : '') + (_bdg ? ' <span style="color:' + _bdg[1] + ';border:1px solid ' + _bdg[1] + ';border-radius:2px;padding:0 3px;font-size:0.62rem;">' + _bdg[0] + '</span>' : '') + '</div>';
+      html += '<div style="font-size:0.66rem;color:var(--color-foreground-muted);">' + fromDate + ' → ' + toDate + (c.reason && !c._fromCareer ? ' · ' + escHtml(c.reason) : '') + '</div>';
       html += '</div>';
     });
     html += '</div>';

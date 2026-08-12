@@ -14,20 +14,43 @@ function assert(cond, msg) { if (!cond) throw new Error('FAIL: ' + msg); asserti
 {
   const ctx = {
     console, Math, JSON, RegExp, Array, Object, String, Number, Boolean, parseInt, isNaN,
-    window: null, P: { playerInfo: { characterName: '皇帝' } }, GM: { chars: [] },
-    personKey: c => (c && c.name) || ''
+    window: null, P: { playerInfo: { characterName: '皇帝' } },
+    GM: { chars: [
+      { name: '戊', alive: true, _dismissed: true, _dismissedTurn: 3 },   // 被罢免·供名字级校验
+      { name: '己', alive: true, _retired: true }                          // 致仕
+    ] },
+    personKey: c => (c && c.name) || '',
+    findCharByName: n => ({ name: '戊', alive: true, _dismissed: true, _dismissedTurn: 3 }.name === n
+      ? { name: '戊', alive: true, _dismissed: true, _dismissedTurn: 3 }
+      : ({ name: '己', alive: true, _retired: true }.name === n ? { name: '己', alive: true, _retired: true } : null))
   };
   ctx.window = ctx; ctx.globalThis = ctx;
   vm.createContext(ctx);
   vm.runInContext(fs.readFileSync(path.join(ROOT, 'tm-memorials.js'), 'utf8'), ctx, { filename: 'tm-memorials.js' });
-  const live   = { name: '甲', alive: true };
+  const live   = { name: '甲', alive: true, officialTitle: '户部侍郎' };   // 在任官员
   const deadA  = { name: '乙', alive: false };           // 正常死亡
   const halfB  = { name: '丙', dead: true };              // 半死(只设dead·triggerCharacterDeath旧bug)
   const player = { name: '皇帝', alive: true };
-  assert(ctx._memCanPresent(live) === true, '活人可上奏');
+  const noOffice = { name: '丁', alive: true };           // 白身·无官职
+  const dismissed = { name: '戊', alive: true, _dismissed: true, _dismissedTurn: 3 };  // 被罢免
+  const retired = { name: '己', alive: true, _retired: true };                          // 致仕
+  assert(ctx._memCanPresent(live) === true, '在任官员可上奏');
   assert(ctx._memCanPresent(deadA) === false, 'alive=false 死者不可上奏');
   assert(ctx._memCanPresent(halfB) === false, 'dead=true 半死者不可上奏(防御)');
   assert(ctx._memCanPresent(player) === false, '皇帝不上奏');
+  assert(ctx._memCanPresent(noOffice) === false, '白身/无官职不可上奏(2026-08-12 官职闸)');
+  assert(ctx._memCanPresent(dismissed) === false, '被罢免官员不可上正式奏疏(2026-08-12 官职闸·根治胡廷宴式持续报灾)');
+  assert(ctx._memCanPresent(retired) === false, '致仕官员不可上正式奏疏(2026-08-12 官职闸)');
+  // 密奏例外:罢免/致仕/下狱/流放者可上密折/密揭(废员条陈·缙绅密报·狱中血书)
+  assert(ctx._memCanPresent(dismissed, { secret: true }) === true, '被罢免者可上密奏(2026-08-12 密奏例外)');
+  assert(ctx._memCanPresent(retired, { secret: true }) === true, '致仕者可上密奏(2026-08-12 密奏例外)');
+  assert(ctx._memCanPresent({ name: '庚', alive: true, _imprisoned: true, officialTitle: '残职' }, { secret: true }) === true, '下狱者可上密奏(2026-08-12 密奏例外)');
+  assert(ctx._memCanPresent({ name: '辛', alive: true, _exiled: true, officialTitle: '残职' }, { secret: true }) === true, '流放者可上密奏(2026-08-12 密奏例外)');
+  assert(ctx._memCanPresent(deadA, { secret: true }) === false, '死者连密奏也不可(2026-08-12)');
+  assert(ctx._memIsIllegalPresenterName('戊', false) === true, '密奏外:被罢免者非法上奏人');
+  assert(ctx._memIsIllegalPresenterName('戊', true) === false, '密奏:被罢免者放行');
+  assert(ctx._memIsSecretMemorial({ subtype: '密折' }) === true, '密折→密奏判定');
+  assert(ctx._memIsSecretMemorial({ subtype: '题本' }) === false, '题本→非密奏判定');
 }
 
 // ── 2) _ty3_actionRevoke:革职≠死亡 ──

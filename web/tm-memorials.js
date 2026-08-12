@@ -62,13 +62,31 @@ function _memIsPlayerChar(c){
   );
 }
 
-function _memIsIllegalPresenterName(name){
+// 密奏判定:密折/密揭/密报/密奏/密陈 → 允许罢免/致仕/下狱/流放者(废员条陈·缙绅密报·狱中血书)
+function _memIsSecretMemorial(m){
+  if (!m) return false;
+  var st = String(m.subtype || m.type || m.kind || '');
+  return /密折|密揭|密报|密奏|密陈/.test(st);
+}
+
+function _memIsIllegalPresenterName(name, isSecret){
   if (name == null) return false;
   var n = String(name).trim();
   if (!n || n === '\u6709\u53F8') return false;
   if (_memPlayerNameMap()[n]) return true;
   try {
-    if (typeof findCharByName === 'function') return _memIsPlayerChar(findCharByName(n));
+    if (typeof findCharByName === 'function') {
+      var _c = findCharByName(n);
+      if (!_c) return false;
+      // ★2026-08-12 与 _memCanPresent 官职闸一致:已免职/致仕/下狱者不得作为奏疏上奏人
+      //   (防 AI 从名单外编造·或旧奏疏残留在名册里继续以官员身份出现)。
+      //   ★2026-08-12 密奏例外:废员条陈/致仕缙绅密报/狱中血书是真实明制渠道——
+      //   密折/密揭(isSecret=true)放行罢免/致仕/下狱/流放者·正式题本/上疏仍禁。
+      var _dism = _c._dismissed || _c._dismissedTurn || _c._removedFromOffice || _c._dismissedReason;
+      var _inCap = _c._retired || _c.retired || _c._imprisoned || _c._jailed || _c._exiled;
+      if (_dism || _inCap) return !isSecret;
+      return _memIsPlayerChar(_c);
+    }
   } catch(_) {}
   return false;
 }
@@ -91,10 +109,25 @@ function _memSameFactionAsPlayer(c){
   if (!cf) return false;
   return cf === pf.name || cf.indexOf(pf.name) === 0 || (pf.name && pf.name.indexOf(cf) === 0);
 }
-function _memCanPresent(c){
+function _memCanPresent(c, opts){
   // 防御:死者(alive===false 或 dead===true)不得上奏·兼容只设 dead 不设 alive 的半死路径。
   // 势力根治(owner 2026-06)：奏疏=臣→君·只本朝臣子能上奏·非玩家势力(尤其敌对)首脑不该给玩家上「为你着想、损己利你」的奏疏。
-  return !!(c && c.alive !== false && !c.dead && !_memIsPlayerChar(c) && _memSameFactionAsPlayer(c));
+  if (!c || c.alive === false || c.dead || _memIsPlayerChar(c) || !_memSameFactionAsPlayer(c)) return false;
+  var _secret = !!(opts && opts.secret);
+  // ★2026-08-12 官职闸:奏疏=现任臣工言事。被罢免/革职/削籍/致仕/下狱/流放者与白身不得再以官员身份上奏——
+  //   根因:玩家罢免某官(如胡廷宴)后他仍每回合报灾·准奏自然无果(此人已无职无权执行)。免职路径
+  //   (tm-endturn-edict.js)已清 officialTitle/title/officialTitles·故「无官职」即被免/白身·直接挡下。
+  //   ★2026-08-12 密奏例外:opts.secret=true 时跳过官职闸——废员条陈/致仕缙绅密报/狱中血书
+  //   (密折/密揭渠道)对罢免/致仕/下狱/流放者开放·正式题本/上疏仍须现任官员。
+  if (!_secret) {
+    if (c._dismissed || c._dismissedTurn || c._removedFromOffice || c._dismissedReason) return false;
+    if (c._retired || c.retired) return false;
+    if (c._imprisoned || c._jailed || c._exiled) return false;
+    var _hasOffice = c.officialTitle || c.position ||
+      (Array.isArray(c.officialTitles) && c.officialTitles.length > 0) || c.title;
+    if (!_hasOffice) return false;
+  }
+  return true;
 }
 
 function _memSafePresenterName(name){
@@ -104,7 +137,7 @@ function _memSafePresenterName(name){
 }
 
 function _memMarkIllegalPresenter(m, where){
-  if (!m || !_memIsIllegalPresenterName(m.from)) return false;
+  if (!m || !_memIsIllegalPresenterName(m.from, _memIsSecretMemorial(m))) return false;
   m._invalidPresenter = true;
   m.status = 'invalid_presenter';
   try { console.warn('[memorials] skip illegal presenter at ' + (where || 'unknown') + ':', m.from); } catch(_) {}
@@ -246,14 +279,24 @@ async function genMemorialsAI(count){
     // 角色列表（含特质、目标、忠诚、弧线、亲疏）
     prompt += '\n上奏角色：\n';
     prompt += 'HARD RULE: from must be selected from the presenter list below; never use the player/emperor himself as from.\n';
+    prompt += 'HARD RULE: 名单已过滤——被罢免/革职/削籍/致仕/下狱者不在「现任」列，勿自行添加为正式上奏人；现任官员(括号内为其现职)可上任何奏疏。\n';
+    prompt += 'HARD RULE: 标「在野·仅密奏/代奏」者(被罢免/致仕/下狱/流放/白身)——只可 ①上密折/密揭(废员条陈·缙绅密报·狱中血书·subtype 须为密折/密揭)，或 ②由现任官员代奏(from 写现任官员·content 注明「代某某陈情/转呈」·可附 delegatedFor:"某某"字段)。不得以官员身份上题本/上疏，不得自拟官职。\n';
     var candidates = GM.chars.filter(_memCanPresent);
+    // 在野可密奏者(被罢免/致仕/下狱/流放/白身·仅密奏或代奏渠道)
+    var wilds = GM.chars.filter(function(c){ return _memCanPresent(c, { secret: true }) && !_memCanPresent(c); });
     // 按"上奏动机"排序：野心高、忠诚极端、压力高的优先
     candidates.sort(function(a, b) {
       var sa = Math.abs((a.loyalty || 50) - 50) + (a.ambition || 50) + (a.stress || 0) * 0.5;
       var sb = Math.abs((b.loyalty || 50) - 50) + (b.ambition || 50) + (b.stress || 0) * 0.5;
       return sb - sa;
     });
-    candidates.slice(0, Math.min(count + 2, 8)).forEach(function(ch, idx) {
+    wilds.sort(function(a, b) {
+      var sa = Math.abs((a.loyalty || 50) - 50) + (a.ambition || 50) + (a.stress || 0) * 0.5;
+      var sb = Math.abs((b.loyalty || 50) - 50) + (b.ambition || 50) + (b.stress || 0) * 0.5;
+      return sb - sa;
+    });
+    var _listAll = candidates.slice(0, Math.min(count + 2, 8)).concat(wilds.slice(0, 3));
+    _listAll.forEach(function(ch, idx) {
       var traits = '';
       if (ch.traitIds && ch.traitIds.length > 0 && P.traitDefinitions) {
         var names = [], hints = [];
@@ -310,6 +353,10 @@ async function genMemorialsAI(count){
       var _officeStr = ch.officialTitle || ch.title || '';
       if (ch.officialTitle && ch.title && ch.officialTitle !== ch.title) {
         _officeStr = ch.officialTitle + '·' + ch.title;
+      }
+      // ★2026-08-12 在野标注:非现任(被罢免/致仕/下狱/流放/白身) → 明示仅密奏/代奏渠道·AI 不得让其以官员身份上题本
+      if (!_memCanPresent(ch)) {
+        _officeStr = (_officeStr || '在野') + '【在野·仅密奏/代奏】';
       }
       // 完善·党派 + 势力
       var _partyStr = '';
@@ -595,7 +642,7 @@ async function genMemorialsAI(count){
         var p = extractJSON(content);
         if (!Array.isArray(p) || p.length < Math.min(count, 2)) return { valid: false, reason: '奏疏数量不足' };
         var illegal = [];
-        p.forEach(function(m, i) { if (m && _memIsIllegalPresenterName(m.from)) illegal.push((i + 1) + '·' + (m.from || '?')); });
+        p.forEach(function(m, i) { if (m && _memIsIllegalPresenterName(m.from, _memIsSecretMemorial(m))) illegal.push((i + 1) + '·' + (m.from || '?')); });
         if (illegal.length > 0) return { valid: false, reason: '非法上奏人（玩家/皇帝本人不得给自己上奏）：' + illegal.join('；') };
         return true;  // 字数偏短不在此整批废·留给「部分接受」逐篇筛+补缺
       }
@@ -603,7 +650,7 @@ async function genMemorialsAI(count){
     if (!_memSessionCurrent()) { console.warn('[genMemorialsAI] 丢弃过期结果'); return; }
     var _memRaw = extractJSON(c) || [];
     var _good = [], _shortN = 0;
-    _memRaw.forEach(function(m) { if (m && !_memIsIllegalPresenterName(m.from)) { if (_memPassesLength(m)) _good.push(m); else _shortN++; } });
+    _memRaw.forEach(function(m) { if (m && !_memIsIllegalPresenterName(m.from, _memIsSecretMemorial(m))) { if (_memPassesLength(m)) _good.push(m); else _shortN++; } });
     // 只补不达标造成的缺口(一次·小 prompt·非整批重投)
     if (_good.length < count && _shortN > 0) {
       var _need = count - _good.length;
@@ -614,22 +661,24 @@ async function genMemorialsAI(count){
           validator: function(content) { var p = extractJSON(content); return Array.isArray(p) && p.length >= 1; }
         });
         if (!_memSessionCurrent()) { console.warn('[genMemorialsAI] 丢弃过期补写结果'); return; }
-        (extractJSON(_c2) || []).forEach(function(m) { if (_good.length < count && m && !_memIsIllegalPresenterName(m.from) && _memPassesLength(m)) _good.push(m); });
+        (extractJSON(_c2) || []).forEach(function(m) { if (_good.length < count && m && !_memIsIllegalPresenterName(m.from, _memIsSecretMemorial(m)) && _memPassesLength(m)) _good.push(m); });
       } catch (_topupE) { try { console.warn('[memorials·部分接受·补写失败]', _topupE); } catch (_) {} }
     }
     // 兜底：补写后仍太少 → 把原批偏短的也用上(总比缺斤少两强·保持原"少数偏短可接受"精神)
-    if (_good.length < Math.min(count, 2)) { _memRaw.forEach(function(m) { if (m && !_memIsIllegalPresenterName(m.from) && _good.indexOf(m) < 0) _good.push(m); }); }
+    if (_good.length < Math.min(count, 2)) { _memRaw.forEach(function(m) { if (m && !_memIsIllegalPresenterName(m.from, _memIsSecretMemorial(m)) && _good.indexOf(m) < 0) _good.push(m); }); }
     var parsed = _good;
     if (Array.isArray(parsed)) {
       var capital = GM._capital || '京城';
       var localMems = [];
       parsed.slice(0, count).forEach(function(m) {
-        if (!m || _memIsIllegalPresenterName(m.from)) {
+        if (!m || _memIsIllegalPresenterName(m.from, _memIsSecretMemorial(m))) {
           try { console.warn('[memorials] drop illegal AI memorial presenter:', m && m.from); } catch(_) {}
           return;
         }
         var safeFrom = _memSafePresenterName(m.from || '');
         var mem = { id: uid(), from: safeFrom, title: m.title || '', type: m.type || '\u653F\u52A1', subtype: m.subtype || '\u9898\u672C', content: m.content || '', status: 'pending', turn: GM.turn, reply: '', reliability: m.reliability || 'medium', bias: m.bias || 'none', relatedTo: m.relatedTo || '', priority: m.priority || 'normal' };
+        // ★2026-08-12 代奏:AI 可写 delegatedFor 标注被代奏的在野者(废员条陈·缙绅请托由现任官员代奏)·存字段供面板/推演辨识
+        if (m.delegatedFor) { try { mem._delegatedFor = String(m.delegatedFor).slice(0, 20); } catch(_){} }
         // 检查上奏者是否在京城
         var ch = findCharByName(mem.from);
         // 势力守卫(owner 2026-06)：奏疏=臣→君·上奏者须本朝臣子。防 AI 无视 HARD RULE 选出真实的非玩家势力(尤其敌对)角色给玩家上「损己利君」的奏疏。

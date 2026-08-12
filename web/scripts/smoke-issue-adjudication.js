@@ -15,7 +15,7 @@ const src = fs.readFileSync(path.join(ROOT, 'tm-endturn-helpers.js'), 'utf8');
 // ① _chooseIssueOption 改 async + AI 裁定门控
 ok(/async function _chooseIssueOption/.test(src), '① _chooseIssueOption 改 async');
 ok(/typeof _eventAdjudicationOn === 'function' && _eventAdjudicationOn\(\)/.test(src), '① 开关门控 _eventAdjudicationOn');
-ok(/_adj = await _adjudicateIssueOutcomeViaAI\(issue, ch\)/.test(src), '① 走 AI 裁定 _adjudicateIssueOutcomeViaAI');
+ok(/_adj = await Promise\.race\(\[[\s\S]{0,80}_adjudicateIssueOutcomeViaAI\(issue, ch\)/.test(src), '① 走 AI 裁定 _adjudicateIssueOutcomeViaAI(Promise.race 超时兜底)');
 
 // ② 固定 effect 降兜底(!_adj 时才查表)
 ok(/if \(!_adj && ch\.effect && typeof ch\.effect === 'object'\)/.test(src), '② 固定 effect 降兜底(!_adj·零回归)');

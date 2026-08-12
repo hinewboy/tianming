@@ -1609,6 +1609,20 @@
       }
     }
 
+    // ★2026-08-12 朝议/廷议决议落实进展——系统确定性推进·叙事必须呼应(根治「说好救灾无下文」)
+    //   settleCourtResolutions(推演前结算)写的 _courtResolutionLog·近两回合条目注入·AI 可见「议定之事在办/已办结」。
+    if (GM._courtResolutionLog && GM._courtResolutionLog.length > 0) {
+      var _crl = GM._courtResolutionLog.filter(function(x){ return x && (x.turn === GM.turn - 1 || x.turn === GM.turn); });
+      if (_crl.length > 0) {
+        tp += '\n【朝议决议落实进展——系统已确定性推进·叙事须呼应】\n';
+        _crl.slice(-6).forEach(function(x) {
+          tp += '  · ' + (x.done ? '已办结' : '进行中') + '：' + String(x.title || '').slice(0, 30) + '（' + (x.note || '') + '）\n';
+        });
+        tp += '  ※ 议定之事正在办理/已办结：相关衙门与官员在 npc_actions 中应有执行表现（拨饿、督工、巡赈、回奏）；\n';
+        tp += '    已办结者的账本后果（省民变/帛银支出/军备）系统已结算，勿在 reform_effects/char_updates 重复给，以免双计。\n';
+      }
+    }
+
     // 廷议 V3 · 近期廷议倾向(GM.recentChaoyi[]·至多 5 条·让 AI 把握玩家政治模式)
     if (Array.isArray(GM.recentChaoyi) && GM.recentChaoyi.length > 0) {
       tp += '\n【近期廷议倾向（廷议V3·跨回合）】\n';

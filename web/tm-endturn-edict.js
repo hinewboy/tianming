@@ -103,6 +103,25 @@ function extractEdictActions(edictText) {
     }
   });
 
+  // ★2026-08-12 自然语言任命(玩家实测「很多圣旨没执行」·手写诏书如「孙承宗忠勇可嘉，朕特命其为兵部尚书，整饬辽事」
+  //   名在句首·任命动词+职位在句尾·现有紧凑模式抓不到)。已知名锚定·名后 26 字内找「命其为/特命/委以/擢为/出任」+职位。
+  try {
+    var _nlAppointRx = new RegExp('[^，。；！？\\n]{0,26}?(?:特命|命其为|委其为|任其为|擢为|晋为|授以|加授|命其署|委以|出任|担任)(?:其)?([\\u4e00-\\u9fa5]{2,14})');
+    for (var _na = 0; _na < knownChars.length; _na++) {
+      var _kcA = knownChars[_na];
+      var _atA = text.indexOf(_kcA);
+      if (_atA < 0) continue;
+      var _mNlA = text.slice(_atA + _kcA.length, _atA + _kcA.length + 26).match(_nlAppointRx);
+      if (!_mNlA) continue;
+      var _posNlA = _findKnownPosition(_mNlA[1]);
+      if (_posNlA.length < 2) continue;
+      var _keyNlA = knownMap[_kcA] + '→' + _posNlA;
+      if (_appointSet[_keyNlA]) continue;
+      _appointSet[_keyNlA] = true;
+      actions.appointments.push({ character: knownMap[_kcA], position: _posNlA, concurrent: false });
+    }
+  } catch (_nlAppE) {}
+
   // ═══ 免职/治罪 模式（动作-目标级极性判定 + 受控相邻缝合 · Codex 二审重构）═══
   //   演进:侦探三病(动词表缺口/非贪婪截名/salvage 单向)→一审四洞(否定误摘/Pass B 吞标点/漏 ASCII空白/漏多人列举)
   //   →二审三洞:补丁式否定窗判不了「不得不革职X(双否→正)」「不得宽宥仍须查办X(近标记=仍须→正)」「切勿…轻率查办X(近标记=切勿→负·距离无上限)」;
@@ -255,6 +274,35 @@ function extractEdictActions(edictText) {
       }
     }
   });
+  // ★2026-08-12 自然语言免职(玩家实测「很多圣旨没执行」·根因:手写诏书如「胡廷宴粉饰灾情，欺君罔上，着即革职查办」
+  //   名在句首·治罪动词在句尾·现有 Pass A/B 抓不到→解析率 0%→applyEdictActions 空转)。
+  //   动词锚定·向前≤24字找最近已知名(遇名即停·与 _polarityOf 同构)·守卫:
+  //   ①名→动词间含另一治罪/宽宥动词(释放/赦免/革职等)→名属前动作·跳过(「释放陈奇瑜，革职王在晋」不误摘陈奇瑜);
+  //   ②名→动词间含否定/宽宥词→跳过(「姑免查办」「不得革职」不执行)。
+  //   名在动词后的场景(「革职王在晋」)由现有 Pass A 枚举路径处理·本模式只补「名在前·长距离」。
+  try {
+    var _nlDismVerb = '(?:革职|革任|罢免|免职|免官|罢官|黜免|黜落|削籍|褫职|夺职|褫夺|罢黜|去职|勒令致仕|革去|免去|着革|着免)';
+    var _nlDismVerbRx2 = new RegExp(_nlDismVerb, 'g');
+    var _dm3;
+    while ((_dm3 = _nlDismVerbRx2.exec(text)) !== null) {
+      var _vI3 = _dm3.index;
+      var _pre3 = text.slice(Math.max(0, _vI3 - 24), _vI3);
+      if (!_pre3) continue;
+      // ① 名→动词间出现另一治罪/宽宥动词 → 名归前动作·本动词悬空·跳过
+      if (/(?:释放|赦免|宽宥|开释|免除|革职|罢免|免职|免官|罢官|查办|拿问|圈禁|下狱|杖责|流放|谪)/.test(_pre3)) continue;
+      // 找最近已知名(遇名即停·取最靠右者)
+      var _best3 = null, _bp3 = -1;
+      for (var _k3 = 0; _k3 < knownChars.length; _k3++) {
+        var _at3 = _pre3.lastIndexOf(knownChars[_k3]);
+        if (_at3 >= 0 && _at3 > _bp3) { _bp3 = _at3; _best3 = knownMap[knownChars[_k3]]; }
+      }
+      if (!_best3) continue;
+      // ② 名→动词间含否定/宽宥 → 跳过
+      var _seg3 = _pre3.slice(_bp3);
+      if (/(?:不|毋|勿|莫|非|不得|不可|不宜|岂可|岂能|暂缓|姑免|宽宥|赦免|释放|开释|免于|不予|未|难|缓)[^。；！？\n]{0,6}/.test(_seg3)) continue;
+      _pushDismissal(_best3);
+    }
+  } catch (_nlDismE) {}
   if (actions.appointments.length && actions.dismissals.length) {
     var _appointedNames = {};
     actions.appointments.forEach(function(a){ if (a && a.character) _appointedNames[a.character] = true; });
@@ -332,6 +380,23 @@ function extractEdictActions(edictText) {
       actions.rewards.push({ character: char });
     }
   });
+  // ★2026-08-12 单字「赐」赏赐(玩家最常用写法·此前不识别→「赐袁崇焕白银千两」落空)。
+  //   赐 + 已知名 + 恩赏物词——须避开赐死/赐自尽/赐鸩(致死语走 deaths·恩赏物词表不含死/鸩)。
+  try {
+    var _grantRx = new RegExp('赐([\\u4e00-\\u9fa5]{2,6}?)(?:白银|黄金|银两|千两|万两|百两|蟒袍|宝钞|绢帛|绸缎|财物|宅邸|田庄|美酒|骏马|尚方剑|上方剑|冠带|匾额|金帛|币帛|钱物|鱼符|铁券)', 'g');
+    var _gm2;
+    while ((_gm2 = _grantRx.exec(text)) !== null) {
+      var _grChar = _gm2[1];
+      if (knownChars.length) {
+        for (var _gi = 0; _gi < knownChars.length; _gi++) {
+          if (_grChar.indexOf(knownChars[_gi]) >= 0) { _grChar = knownMap[knownChars[_gi]]; break; }
+        }
+      }
+      if (_grChar.length < 2 || _rewardSet[_grChar]) continue;
+      _rewardSet[_grChar] = true;
+      actions.rewards.push({ character: _grChar });
+    }
+  } catch (_grantE) {}
 
   // ═══ 赐死模式 ═══
   var deathPatterns = [
@@ -518,7 +583,7 @@ function applyEdictActions(actions) {
           char.position = a.position;
         }
         if (!char.careerHistory) char.careerHistory = [];
-        char.careerHistory.push({ turn: GM.turn, event: (isConcurrent ? '奉诏加兼 ' : '奉诏就任 ') + a.position + '（' + hit.deptPath + '）' });
+        char.careerHistory.push({ turn: GM.turn, event: (isConcurrent ? '奉诏加兼 ' : '奉诏就任 ') + a.position + '（' + hit.deptPath + '）', action: isConcurrent ? 'add' : 'appoint', position: a.position });
         // 前任记录
         if (prevHolder && prevHolder !== a.character) {
           var prevCh = findCharByName(prevHolder);
@@ -593,7 +658,7 @@ function applyEdictActions(actions) {
         char.position = a.position;
       }
       if (!char.careerHistory) char.careerHistory = [];
-      char.careerHistory.push({ turn: GM.turn, event: (isConcurrentFallback ? '奉诏加兼 ' : '奉诏就任 ') + a.position + '（官制中暂未立此衙门·视同特设）' });
+      char.careerHistory.push({ turn: GM.turn, event: (isConcurrentFallback ? '奉诏加兼 ' : '奉诏就任 ') + a.position + '（官制中暂未立此衙门·视同特设）', action: isConcurrentFallback ? 'add' : 'appoint', position: a.position });
       addEB('人事', a.character + (isConcurrentFallback ? '奉诏加兼' : '奉诏就任') + a.position + '（特设）', { credibility: 'medium' });
       if (typeof AffinityMap !== 'undefined') AffinityMap.add(a.character, P.playerInfo.characterName || '玩家', 5, '被委以重任');
     }
@@ -718,16 +783,23 @@ function applyEdictActions(actions) {
       walkD(GM.officeTree);
     }
     if (char) {
+      // 免职前快照原职(供履历/死因/复用)
+      char._positionAtDismiss = char.officialTitle || char.title || '';
       char.officialTitle = '';
       char.position = '';
       char.title = ''; // 同步·否则免职后廷议等 `officialTitle||title` 回退仍显示原官职
       char.officialTitles = [];
       char.concurrentTitles = [];
       char.concurrentTitle = '';
+      // ★2026-08-12 免职语义标记:供奏疏资格/廷议资格/面板判定(被罢免者不得再以官员身份上奏)
+      char._dismissed = true; char._dismissedTurn = GM.turn || 0;
+      char._dismissedReason = 'dismiss_edict';
       // 免职须斩在途赴任链(同 onDismissal)：否则到期自动就任翻案
       delete char._travelAssignPost; delete char._travelTo; delete char._travelRemainingDays;
       if (!char.careerHistory) char.careerHistory = [];
-      char.careerHistory.push({ turn: GM.turn, event: '奉诏免职' });
+      // ★2026-08-12 履历丰富化:免职事件带 action 语义+原职(供仕途时间线渲染「罢免/左迁」标记)
+      var _prevPos = char._positionAtDismiss || '';
+      char.careerHistory.push({ turn: GM.turn, event: '奉诏免职' + (_prevPos ? '（原任' + _prevPos + '）' : ''), action: 'dismiss', position: _prevPos || '' });
     }
     if (typeof recordCharacterArc === 'function') recordCharacterArc(a.character, 'dismissal', '奉诏免职');
     addEB('人事', a.character + '被免职', { credibility: didAny ? 'high' : 'medium' });

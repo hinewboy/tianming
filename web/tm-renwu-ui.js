@@ -526,7 +526,7 @@ function viewRenwu(i){
     html += '</div>';
   }
   if (ch.alive === false) {
-    html += '<div style="font-size:0.8rem;color:var(--vermillion-400);margin-bottom:0.6rem;padding:0.3rem 0.6rem;background:rgba(231,76,60,0.1);border-radius:4px;">\u5DF2\u6545' + (ch.deathReason ? '\uFF1A' + escHtml(ch.deathReason) : '') + (ch.deathTurn ? ' (T' + ch.deathTurn + ')' : '') + '</div>';
+    html += '<div style="font-size:0.8rem;color:var(--vermillion-400);margin-bottom:0.6rem;padding:0.3rem 0.6rem;background:rgba(231,76,60,0.1);border-radius:4px;"><b>\u5DF2\u6545</b>' + ((ch.deathContext || ch.deathReason) ? '\uFF1A' + escHtml(ch.deathContext || ch.deathReason) : '') + (ch.deathTurn ? ' (T' + ch.deathTurn + ')' : '') + '</div>';
   }
 
   // ── 身份档案（基本信息上移） ──

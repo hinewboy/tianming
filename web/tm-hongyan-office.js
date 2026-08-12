@@ -526,7 +526,11 @@ function _ltSelectTarget(name) {
   } else {
     GM._pendingLetterTo = name;
   }
-  renderLetterPanel();
+  // ★2026-08-12 渲染兜底:选择必然落状态·渲染异常不吞反馈(与 switchGTab 的 try-catch 配套·根治「点卡片没反应」)
+  try { renderLetterPanel(); } catch(e) {
+    (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'LetterSelect') : console.error('[LetterSelect]', e);
+    if (typeof toast === 'function') { try { toast('已选定 ' + name + '·面板渲染异常见控制台'); } catch(_){} }
+  }
 }
 
 /** 统计辅助函数 */

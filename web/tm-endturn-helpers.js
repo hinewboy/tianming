@@ -1976,7 +1976,14 @@ async function _chooseIssueOption(issueId, choiceIdx) {
   var _adj = false;
   if (typeof _eventAdjudicationOn === 'function' && _eventAdjudicationOn()
       && typeof callAIWithTools === 'function' && typeof applyAITurnChanges === 'function') {
-    try { _adj = await _adjudicateIssueOutcomeViaAI(issue, ch); }
+    try {
+      // ★2026-08-12 超时兜底:AI 裁定若挂起(网络/服务端无响应)Promise 永不 settle→_resolving 永久 true→
+      //   此后点任何选项都 return=「御案案子处理不掉」。45s 未归一律按未裁定回落固定 effect。
+      _adj = await Promise.race([
+        _adjudicateIssueOutcomeViaAI(issue, ch),
+        new Promise(function(_res){ setTimeout(function(){ _res(false); }, 45000); })
+      ]);
+    }
     catch (e) { try { console.warn('[要务·裁定] AI 失败·回落固定 effect:', (e && e.message) || e); } catch(_){} }
   }
   // 应用 effect（兜底:AI 未裁定时·原固定查表）
