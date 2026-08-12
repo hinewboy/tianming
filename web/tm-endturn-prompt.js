@@ -69,7 +69,7 @@
   //   跑一回合冒烟看无幻觉告警后再扩。改这张表即调，不动 build()/调用点。
   global.TM.Endturn.AI.prompt.SYS_PROFILES = {
     NPC:  { stableHead:1, stableRules:1, stableIron:1, base:1, worldPlan:1, worldSocial:1, worldGov:1, worldLifecycle:1, events:1, context:1, player:1, npcDeep:1, letters:1, socialRules:1, roster:1, digest:1, tail:1 },
-    FAC:  { stableHead:1, stableRules:1, stableIron:1, base:1, worldPlan:1, worldSocial:1, events:1, context:1, roster:1, tail:1 },
+    FAC:  { stableHead:1, stableRules:1, stableIron:1, base:1, worldPlan:1, worldSocial:1, events:1, context:1, roster:1, tail:1, fragSuffix:1 },
     LITE: { stableHead:1, stableRules:1, stableIron:1, base:1, worldGov:1, context:1, roster:1, tail:1 },
     // [sysP分级·2026-07-02] 定制档——测绘修正原计划两处坑：sc27 用 LITE 会丢 personnel 桶(current_issues/输出字段目录·
     //   诏令推进靠它)；sc07 用 LITE 会丢 npcDeep(性格/弧线/记忆一致性规则)与 digest(称谓系统/人物关系网)。
@@ -90,7 +90,7 @@
     //   ENRICH(sc19 丰化):补人物党派身世·要 Social(党派阶层背景)+base(史观数值基准)+roster(防撞名)。
     NARR:    { stableHead:1, stableRules:1, stableIron:1, base:1, events:1, digest:1, context:1, player:1, npcDeep:1, worldSocial:1, roster:1, tail:1 },
     REVIEW:  { stableHead:1, stableRules:1, stableIron:1, base:1, context:1, roster:1, tail:1 },
-    NPCDEEP: { stableHead:1, stableRules:1, stableIron:1, base:1, worldPlan:1, worldSocial:1, events:1, context:1, player:1, npcDeep:1, letters:1, socialRules:1, digest:1, roster:1, tail:1 },
+    NPCDEEP: { stableHead:1, stableRules:1, stableIron:1, base:1, worldPlan:1, worldSocial:1, events:1, context:1, player:1, npcDeep:1, letters:1, socialRules:1, digest:1, roster:1, tail:1, fragSuffix:1 },
     MEMW:    { stableHead:1, stableRules:1, stableIron:1, base:1, context:1, npcDeep:1, roster:1, tail:1 },
     MEMC:    { stableHead:1, stableRules:1, stableIron:1, base:1, worldSocial:1, digest:1, context:1, roster:1, tail:1 },
     ENRICH:  { stableHead:1, stableRules:1, stableIron:1, base:1, worldSocial:1, context:1, roster:1, tail:1 }

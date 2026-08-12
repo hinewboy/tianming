@@ -1116,8 +1116,7 @@ EndTurnHooks.registerFragment('party-class-calibration', function(ctx) {
     }
   } catch (_) { diag = null; }
   if (diag) {
-    lines.push('turn=' + diag.turn + ' tier=' + diag.tier + ' seq=' + diag.actionSeq + ' calibrated=' + diag.lastCalibratedSeq);
-    if (diag.lastResult) lines.push('lastCalibration=' + (diag.lastResult.source || '') + ' applied=' + JSON.stringify(diag.lastResult.applied || {}));
+    // T1394·诊断行(turn=/lastCalibration=)不再进 prompt：纯调试数据·AI 用不上·占 token 且曾断缓存前缀
     if (diag.playerSignals && diag.playerSignals.policyTags && diag.playerSignals.policyTags.length) {
       lines.push('policyTags=' + diag.playerSignals.policyTags.slice(0, 8).join(','));
     }
