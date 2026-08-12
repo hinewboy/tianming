@@ -110,9 +110,33 @@ function _endTurn_render(shizhengji, zhengwen, playerStatus, playerInner, edicts
   if (!btn) btn = { textContent:'', style:{} };  // stub，防止 btn.textContent 抛错
   // 默认参数兼容（旧版调用者未传新参数时不崩）
   shiluText = shiluText || '';
+  // ★2026-08-12 实录省token:AI实录预算已降为点睛级(60-120字)——落账时合并本地确定性账本合成的完整编年体实录·
+  //   零 AI 成本·信息完整(evtLog/编年/朝议/人事全收)·叙事点睛(AI)与账目保真(本地)兼得。
+  try {
+    if (typeof _composeLocalTurnSummary === 'function') {
+      var _lsRecord = _composeLocalTurnSummary({ turn: GM.turn - 1 });   // 落账回合=上一回合(turn-1)
+      if (_lsRecord && _lsRecord.shilu_text) {
+        shiluText = (String(shiluText).trim() ? String(shiluText).trim() + '\n' : '') + _lsRecord.shilu_text;
+      }
+    }
+  } catch (_lsE) { try { console.warn('[shiji] 本地实录合成失败:', _lsE && _lsE.message); } catch(_){} }
   szjTitle = szjTitle || '';
   szjSummary = szjSummary || '';
   personnelChanges = personnelChanges || [];
+  // ★2026-08-12 史记人事卷兜底(治「人事一栏关闭/铨曹无事」):AI 未输出 personnel_changes 时·
+  //   用本地账本(officeChanges/evtLog 任免事件)提取的结构化人事合并·去重·人事卷不空。
+  try {
+    if (typeof _composeLocalTurnSummary === 'function') {
+      var _lsP = _composeLocalTurnSummary({ turn: GM.turn - 1 });
+      if (_lsP && Array.isArray(_lsP.personnel_changes) && _lsP.personnel_changes.length) {
+        var _mergedP = (personnelChanges || []).slice();
+        _lsP.personnel_changes.forEach(function (lp) {
+          if (!_mergedP.some(function (x) { return x && x.name === lp.name && x.change === lp.change; })) _mergedP.push(lp);
+        });
+        personnelChanges = _mergedP;
+      }
+    }
+  } catch (_lpe) { try { console.warn('[shiji] 本地人事合成失败:', _lpe && _lpe.message); } catch(_){} }
   hourenXishuo = hourenXishuo || zhengwen || '';
   // ★2026-07-01·归一叙事里的字面转义(agent 模式常见坑):AI 把段落分隔写成字面 "\n\n"、或过度转义 \\n/\\"·
   //   JSON.parse 后仍是「字面反斜杠+n」→ 渲染直出 "\n\n"/误显英文 n·且下方时政记 split(/\n{2,}/) 按真换行

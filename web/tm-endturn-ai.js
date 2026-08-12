@@ -1027,7 +1027,15 @@
         var _dateText = ''; try { _dateText = (typeof getTSText === 'function') ? getTSText(_turn) : ''; } catch(_) {}
         var _why = reason && (reason.message || String(reason)) || 'SC1 returned no usable structured JSON';
         var _brief = (_dateText ? (_dateText + '，') : '') + '朝廷诸务照常，所颁诏令俱已分发有司奉行，一时未有大变上闻，余事俟后报。';
-        var _p = { shizhengji:_brief, zhengwen:_brief, shilu_text:_brief, szj_title:'时移事去', szj_summary:'主推演结构化结果暂缺，系统采用保守降级账本。', turn_summary:'SC1 emergency fallback: no synthetic gameplay deltas applied.', player_status:'朝局暂按既有状态延续。', player_inner:'', events:[{ type:'AI降级', title:'主推演结构化结果暂缺', text:_brief, turn:_turn }], _g2Fallback:true, _emergencyFallback:true, _fallbackReason:String(_why).slice(0, 200) };
+        // ★2026-08-12 降级账本本地合成(治「主推演结构化结果暂缺」空壳·用户诉求:省token+正常总结):
+        //   优先用本回合确定性系统账本合成编年体纪要(零 AI 成本·真实内容)·静态空壳仅作最后兜底。
+        var _p = null;
+        try {
+          if (typeof _composeLocalTurnSummary === 'function') _p = _composeLocalTurnSummary(null);
+        } catch (_lse) { try { console.warn('[ai] 本地合成账本失败:', _lse && _lse.message); } catch(_){} }
+        if (!_p) {
+          _p = { shizhengji:_brief, zhengwen:_brief, shilu_text:_brief, szj_title:'时移事去', szj_summary:'主推演结构化结果暂缺，系统采用保守降级账本。', turn_summary:'SC1 emergency fallback: no synthetic gameplay deltas applied.', player_status:'朝局暂按既有状态延续。', player_inner:'', events:[{ type:'AI降级', title:'主推演结构化结果暂缺', text:_brief, turn:_turn }], _g2Fallback:true, _emergencyFallback:true, _fallbackReason:String(_why).slice(0, 200) };
+        }
         ['changes','resource_changes','variable_changes','char_updates','character_deaths','npc_actions','npc_interactions','npc_letters','npc_correspondence','cultural_works','faction_changes','faction_updates','faction_events','faction_ai_outcomes','faction_relation_changes','faction_interactions','fiscal_adjustments','tax_reforms','currency_adjustments','population_adjustments','central_local_actions','environment_actions','institution_changes','office_assignments','office_dismissals','personnel_changes','army_changes','province_changes','region_updates','class_updates','project_updates','anyPathChanges','table_updates','suggestions'].forEach(function(k){ _p[k] = []; });
         try {
           if (!GM._turnAiResults) GM._turnAiResults = {};

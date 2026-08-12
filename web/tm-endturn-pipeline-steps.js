@@ -414,20 +414,28 @@
               var _fb1 = (GM && GM._turnAiResults && GM._turnAiResults.subcall1);
               if (!_fb1 || !_fb1.shizhengji || /失败|暂缺|AI降级/.test(String(_fb1.shizhengji || ''))) {
                 var _fbTurn = (GM && GM.turn) || 1;
-                var _fbBrief = '主推演结构化结果暂缺（' + String(_why).slice(0, 120) + '），系统采用保守降级账本。';
-                var _fbFallback = {
-                  shizhengji: _fbBrief,
-                  zhengwen: '朝局暂按既有状态延续。',
-                  shilu_text: '',
-                  szj_title: '时移事去',
-                  szj_summary: 'AI 推演异常，本回合按保守账本推进。',
-                  turn_summary: 'SC1 emergency fallback: no synthetic gameplay deltas applied.',
-                  player_status: '朝局暂按既有状态延续。',
-                  player_inner: '',
-                  events: [{ type: 'AI降级', title: '主推演结构化结果暂缺', text: String(_why).slice(0, 160), turn: _fbTurn }],
-                  _g2Fallback: true, _emergencyFallback: true,
-                  _fallbackReason: String(_why).slice(0, 200)
-                };
+                // ★2026-08-12 降级账本本地合成(治「主推演结构化结果暂缺」空壳·用户诉求:省token+正常总结):
+                //   SC1 失败时用本回合确定性系统账本合成编年体纪要(零 AI 成本·真实内容)·替代静态「朝局暂按既有状态延续」。
+                var _fbFallback = null;
+                try {
+                  if (typeof _composeLocalTurnSummary === 'function') _fbFallback = _composeLocalTurnSummary(ctx);
+                } catch (_lse) { try { console.warn('[endturn] 本地合成账本失败:', _lse && _lse.message); } catch(_){} }
+                if (!_fbFallback) {
+                  var _fbBrief = '主推演结构化结果暂缺（' + String(_why).slice(0, 120) + '），系统采用保守降级账本。';
+                  _fbFallback = {
+                    shizhengji: _fbBrief,
+                    zhengwen: '朝局暂按既有状态延续。',
+                    shilu_text: '',
+                    szj_title: '时移事去',
+                    szj_summary: 'AI 推演异常，本回合按保守账本推进。',
+                    turn_summary: 'SC1 emergency fallback: no synthetic gameplay deltas applied.',
+                    player_status: '朝局暂按既有状态延续。',
+                    player_inner: '',
+                    events: [{ type: 'AI降级', title: '主推演结构化结果暂缺', text: String(_why).slice(0, 160), turn: _fbTurn }],
+                    _g2Fallback: true, _emergencyFallback: true,
+                    _fallbackReason: String(_why).slice(0, 200)
+                  };
+                }
                 if (GM) {
                   if (!GM._turnAiResults) GM._turnAiResults = {};
                   GM._turnAiResults.subcall1 = _fbFallback;

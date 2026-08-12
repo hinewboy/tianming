@@ -596,6 +596,119 @@ function _reignNameFor(newEmperorName) {
   return '永昌'; // 兜底
 }
 
+// ★2026-08-12 降级账本本地合成总结(治「主推演结构化结果暂缺」空壳文案·用户诉求:省token+正常总结):
+//   SC1 主推演失败降级时·用本回合已发生的确定性系统账本(evtLog 编年/朝议/人事/诏书)合成编年体纪要·
+//   零 AI 成本·内容是真实的(非「朝局暂按既有状态延续」空壳)·格式对齐正常推演的 turn_summary 消费面。
+function _composeLocalTurnSummary(ctx) {
+  var G = (typeof GM !== 'undefined' && GM) ? GM : null;
+  if (!G) return null;
+  var t = G.turn || 1;
+  try { if (ctx && ctx.turn) t = ctx.turn; } catch (_) {}   // ★2026-08-12 支持指定回合(render 落账用 GM.turn-1)
+  var items = [];
+  var seen = {};
+  function push(text) {
+    if (!text || !String(text).trim()) return;
+    var _k = String(text).trim().slice(0, 24);
+    if (seen[_k]) return;
+    seen[_k] = true;
+    items.push(String(text).replace(/\s+/g, ' ').trim().slice(0, 90));
+  }
+  try {
+    (G.evtLog || []).slice(-40).forEach(function (e) {
+      if (e && e.turn === t && e.text) push('·' + e.text);
+    });
+  } catch (_) {}
+  try {
+    (G.jishiRecords || []).slice(-40).forEach(function (r) {
+      if (r && r.turn === t) {
+        if (r.playerSaid) push('·' + r.playerSaid);
+        if (r.npcSaid) push('·' + r.npcSaid);
+      }
+    });
+  } catch (_) {}
+  try {
+    (G.biannianItems || []).slice(-40).forEach(function (b) {
+      if (b && (b.turn === t || b.turn === undefined)) push('·' + (b.text || b.title || ''));
+    });
+  } catch (_) {}
+  try {
+    (G.officeChanges || []).slice(-20).forEach(function (oc) {
+      if (oc && (oc.turn === t)) push('·' + (oc.text || oc.desc || ''));
+    });
+  } catch (_) {}
+  if (!items.length) items.push('·本回合系统账本无显著事件，朝局沿既有态势延续。');
+  var list = items.slice(0, 8);
+  var brief = '【' + (G.eraName || '') + '·T' + t + ' 本回合纪要】\n' + list.join('\n');
+  // ★2026-08-12 本地结构化人事(治「史记人事卷空/关闭」·从 officeChanges+evtLog 任免事件提取·供 render 合并/降级账本)
+  var personnel_changes = [];
+  try {
+    var _seenP = {};
+    function _pushP(name, change, reason, src) {
+      if (!name || !change) return;
+      var _k = name + '|' + change;
+      if (_seenP[_k]) return;
+      _seenP[_k] = true;
+      personnel_changes.push({ name: name, change: change, reason: String(reason || '').slice(0, 30), source: src || 'local' });
+    }
+    var _pcRx = /(迁|擢|升|授|拜|起复|罢|革|黜|致仕|归田|乞骸|贬|降|丁忧|守制|殁|卒|薨|死|赐死|下狱|流放)/;
+    // 提取(名/动):优先在册官员名册匹配(长度降序·避免子串误配)·兜底动词锚定+介词边界
+    function _extractPC(text) {
+      var _m = String(text || '').match(_pcRx);
+      if (!_m) return null;
+      var _names = (G.chars || []).map(function (c) { return c && c.name; })
+        .filter(function (n) { return n && n.length >= 2 && String(text).indexOf(n) >= 0; })
+        .sort(function (a, b) { return b.length - a.length; });
+      if (_names.length) return { name: _names[0], change: _m[0] };
+      var _after = String(text).slice(_m.index + _m[0].length);
+      var _am = _after.match(/^([^\s：:，,、。]{2,4})(?=为|任|、|，|,|$|：|:)/);
+      if (_am) return { name: _am[1], change: _m[0] };
+      return null;
+    }
+    (G.officeChanges || []).forEach(function (oc) {
+      if (oc && oc.turn === t) {
+        var _s = String(oc.text || oc.desc || '');
+        var _ex = _extractPC(_s);
+        if (_ex) _pushP(_ex.name, _ex.change, _s.slice(0, 30), 'office');
+      }
+    });
+    (G.evtLog || []).forEach(function (e) {
+      if (e && e.turn === t && /任免|人事|擢|罢|黜|致仕|殁|卒|薨|赐死|下狱/.test(String(e.type || '') + String(e.text || ''))) {
+        var _ex2 = _extractPC(String(e.text || ''));
+        if (_ex2) _pushP(_ex2.name, _ex2.change, String(e.text || '').slice(0, 30), 'evt');
+      }
+    });
+    // ★2026-08-12 玩家官制操作(careerHistory·任命/免职/加兼/荫子/荐辟)——史记人事卷主源之一:
+    //   面板操作只写 careerHistory 不写 evtLog·此前本地提取漏掉·人事卷仍空(治「人事栏 hollow/关闭」)。
+    (G.chars || []).forEach(function (c) {
+      if (!c || !Array.isArray(c.careerHistory)) return;
+      c.careerHistory.forEach(function (h) {
+        if (!h || h.turn !== t || !h.event) return;
+        var _eh = String(h.event || '');
+        var _ex3 = _extractPC(_eh);
+        if (_ex3 && _ex3.name && _ex3.name.length >= 2) _pushP(_ex3.name, _ex3.change, _eh.slice(0, 30), 'career');
+        else if (/奉诏就任|奉诏加兼|就任|内定就任|补缺|授/.test(_eh)) _pushP(c.name, '任', _eh.slice(0, 30), 'career');
+        else if (/奉诏免|免职|罢|革|黜/.test(_eh)) _pushP(c.name, '免', _eh.slice(0, 30), 'career');
+      });
+    });
+  } catch (_pE) {}
+  return {
+    shizhengji: brief,
+    zhengwen: (list[0] || '').replace(/^·/, '').slice(0, 60),
+    // ★2026-08-12 实录体:无标题·「是月，……。」——对齐《明实录》编年账目文体(render 落账合并用)
+    shilu_text: '是月，' + list.map(function (tx) { return tx.replace(/^·/, ''); }).join('。') + '。',
+    szj_title: (G.eraName || '') + '·月录',
+    szj_summary: 'AI 主推演暂缺，此为本回合系统账本汇录（确定性·本地合成·零额外算力）。',
+    turn_summary: '本回合纪要·共' + list.length + '事：' + list.join('；').replace(/·/g, ''),
+    player_status: '朝局按系统账本延续。',
+    player_inner: '',
+    events: list.map(function (tx, i) { return { type: '实录', title: '本回合账目' + (i + 1), text: tx.replace(/^·/, ''), turn: t }; }),
+    personnel_changes: personnel_changes,   // ★2026-08-12 本地结构化人事(史记人事卷兜底)
+    _g2Fallback: true, _emergencyFallback: true,
+    _fallbackReason: 'SC1 主推演失败·本地合成账本'
+  };
+}
+if (typeof window !== 'undefined') window._composeLocalTurnSummary = _composeLocalTurnSummary;
+
 SettlementPipeline.register('annualReview', '年度考课', function() { runAnnualReview(); }, 50, 'monthly');
 
 // ============================================================
